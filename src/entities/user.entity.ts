@@ -22,11 +22,26 @@ export class User {
   @Column({ nullable: true })
   referralCode!: string;
 
-  @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
-  referredBy?: User;
+  @Column()
+  balance!: number;
 
-  @OneToMany(() => User, (user) => user.referredBy)
-  referredUsers?: User[];
+  @Column()
+  investment!: number;
+
+  @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
+  referredBy!: User;
+
+  @OneToMany(() => User, (user) => user.referredBy, { nullable: true })
+  referredUsers!: User[];
+
+  @Column()
+  lastKnownIp!: string;
+
+  @Column({ default: "active" })
+  status!: string;
+
+  @Column({ default: true })
+  earning!: boolean;
 
   @CreateDateColumn()
   createdAt!: Date;

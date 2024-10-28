@@ -3,10 +3,13 @@ import { config } from 'dotenv';
 import { AppError, globalErrorHandler } from './services/error.service';
 import morgan from 'morgan';
 import helmet from 'helmet';
-import userRoute from './routes/user.route';
 import 'reflect-metadata';
 import { dataSource } from './config/dataSource';
 import dbConfig from './config/database.config';
+
+// =============== ROUTES ============== //
+import userRoute from './routes/user.route';
+import investmentRoute from './routes/investment.route';
 
 config();
 
@@ -28,6 +31,7 @@ dataSource.initialize().then(() => {
 
 // =============== ERROR HANDLING ROUTES =========== //
 app.use("/api/v1/user", userRoute);
+app.use("/api/v1/investment", investmentRoute);
 
 // =============== NOT FOUND ROUTE ==================== //
 app.all("*", (req: Request, res: Response, next) => {

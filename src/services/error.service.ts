@@ -6,7 +6,7 @@ export class AppError extends Error {
   public isOperational: boolean;
 
   constructor(message: string, statusCode: number) {
-    super(message); // Call the Error constructor
+    super(message);
 
     this.statusCode = statusCode;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
@@ -17,23 +17,22 @@ export class AppError extends Error {
 }
 
 export const  globalErrorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  // Set default values for error status and code if they are not defined
+  // ================== SET DEFAULT ERROR VALUES ================== //
   err.statusCode = err.statusCode || 500;
   err.status = err.status || 'error';
 
-  // Check if the error is an instance of AppError (operational error)
+  // ================== SEND OPERATIONAL ERROR MESSAGE ================== //
   if (err instanceof AppError) {
-    // Operational, trusted error: send message to the client
+    // ================== SEND OPERATIONAL ERROR MESSAGE ================== //
     return res.status(err.statusCode).json({
       status: err.status,
       message: err.message,
     });
   }
 
-  // If the error is not an instance of AppError, it's a programming or unknown error.
   console.error('ERROR 💥', err);
 
-  // Hide error details from the client, but send a generic message
+  // ================= SEND GENERIC ERROR MESSAGE ================== //
   res.status(500).json({
     status: 'error',
     message: 'Something went very wrong!',
