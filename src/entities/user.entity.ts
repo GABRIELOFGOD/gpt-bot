@@ -7,6 +7,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Investment } from './investment.entity';
+import { EarningsHistory } from './earningHistory.entity';
 
 @Entity("users")
 export class User {
@@ -25,8 +27,8 @@ export class User {
   @Column()
   balance!: number;
 
-  @Column()
-  investment!: number;
+  @OneToMany( () => Investment, (investment) => investment.investor, { nullable: true })
+  investments!: Investment[];
 
   @ManyToOne(() => User, (user) => user.referredUsers, { nullable: true })
   referredBy!: User;
@@ -41,7 +43,10 @@ export class User {
   status!: string;
 
   @Column({ default: true })
-  earning!: boolean;
+  hasActiveInvestment!: boolean;
+
+  @OneToMany( () => EarningsHistory, (earningsHistory) => earningsHistory.user)
+  earningsHistory!: EarningsHistory[];
 
   @CreateDateColumn()
   createdAt!: Date;

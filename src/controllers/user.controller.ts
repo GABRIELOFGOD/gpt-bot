@@ -30,7 +30,6 @@ export class UserController {
     const newUser = this.userRepository.create(userRegisterDto);
     newUser.referralCode = await this.userService.generateUniqueReferralCode();
     newUser.balance = 0;
-    newUser.investment = 0;
     newUser.lastKnownIp = userIp || "";
 
     // ==================== REFERRAL CODE ==================== //
@@ -89,7 +88,7 @@ export class UserController {
     const userId = parseInt(id);
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ["referredBy", "referredUsers"],
+      relations: ["referredBy", "referredUsers", "investments"],
     });
     if (!user) return res.status(404).json({ message: "User not found" });
     res.status(200).json({ user });
