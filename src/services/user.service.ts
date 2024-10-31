@@ -1,6 +1,6 @@
 import { User } from "../entities/user.entity";
 import { Repository } from "typeorm";
-import nodemailer from "nodemailer";
+// import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
 
 export class UserService {
@@ -26,11 +26,11 @@ export class UserService {
   }
 
   // ===================== VERIFY USER CREDENTIALS ===================== //
-  async verifyUserCredentials(email: string, password: string): Promise<User | null> {
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) return null;
-    return user;
-  }
+  // async verifyUserCredentials(email: string, password: string): Promise<User | null> {
+  //   const user = await this.userRepository.findOne({ where: { email } });
+  //   if (!user) return null;
+  //   return user;
+  // }
 
   // ====================== SEND NEW IP NOTIFICATION ====================== //
   // async sendNewIpNotification(user: User, newIp: string): Promise<void> {
@@ -62,7 +62,7 @@ export class UserService {
 
   // ===================== GENERATE AUTH TOKEN ===================== //
   generateAuthToken(user: User): string {
-    const tokenPayload = { id: user.id, email: user.email };
+    const tokenPayload = { id: user.id, wallet: user.wallet };
     const secretKey = process.env.JWT_SECRET!;
     const token = jwt.sign(tokenPayload, secretKey, { expiresIn: "10d" });
     return token;

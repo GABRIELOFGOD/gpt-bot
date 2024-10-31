@@ -1,5 +1,5 @@
 export interface UserRegisterDto {
   wallet: string;
-  email: string;
+  // email: string;
   referralCode?: string;
 }

@@ -9,6 +9,8 @@ import { Repository } from 'typeorm';
 import { UserController } from '../controllers/user.controller';
 import { dataSource } from '../config/dataSource';
 import { Investment } from '../entities/investment.entity';
+import { EarningsHistory } from '../entities/earningHistory.entity';
+import { Claim } from '../entities/claim.entity';
 
 const router = express.Router();
 let userRepository: Repository<User> = dataSource.getRepository(User);
@@ -17,13 +19,18 @@ let investmentRepository: Repository<Investment> = dataSource.getRepository(Inve
 
 let investmentController: InvestmentController;
 
-let investmentService = new InvestmentService(userRepository);
-investmentController = new InvestmentController(investmentService, userRepository, investmentRepository);
+let earningHistoryRepository: Repository<EarningsHistory> = dataSource.getRepository(EarningsHistory);
+
+let claimRepository: Repository<Claim> = dataSource.getRepository(Claim);
+
+let investmentService = new InvestmentService(userRepository, earningHistoryRepository);
+investmentController = new InvestmentController(investmentService, userRepository, investmentRepository, earningHistoryRepository, claimRepository);
 
 
 // ========== PROTECTED INVESTMENT ROUTES ========== //
 router.use(authMiddleware);
 
 router.post("/invest", validateRequest(InvestmentSchema.createInvestment), investmentController.createInvestment);
+router.post("/claim", investmentController.claimEarnings);
 
 export default router;

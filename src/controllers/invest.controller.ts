@@ -5,15 +5,19 @@ import { AppError } from "../services/error.service";
 import { InvestmentService } from "../services/investment.service";
 import { User } from "../entities/user.entity";
 import { Repository } from "typeorm";
-import { Investment } from "src/entities/investment.entity";
+import { Investment } from "../entities/investment.entity";
+import { EarningsHistory } from "../entities/earningHistory.entity";
+import { Claim } from "../entities/claim.entity";
 
 export class InvestmentController {
   constructor(
     private investmentService: InvestmentService,
     private readonly userRepository: Repository<User>,
-    private readonly investmentRepository: Repository<Investment>
+    private readonly investmentRepository: Repository<Investment>,
+    private readonly earningHistoryRepository: Repository<EarningsHistory>,
+    private readonly claimRepository: Repository<Claim>
   ){
-    // this.autoExecute();
+    this.autoExecute();
   }
 
   // ================= AUTO EXECUTE AFTER 20 SECONDS ================= //
@@ -35,7 +39,7 @@ export class InvestmentController {
 
     // ========================= FIND USER ========================= //
     const user = await this.userRepository.findOne({
-        where: { email: reqUser.email }
+        where: { wallet: reqUser.wallet }
     });
 
     if (!user) return next(new AppError("User not found", 400));
@@ -72,7 +76,7 @@ export class InvestmentController {
     if (!reqUser) return next(new AppError("User not found", 400));
 
     const user = await this.userRepository.findOne({
-      where: { email: reqUser.email },
+      where: { wallet: reqUser.wallet },
       relations: ["investments"]
     });
 
@@ -87,7 +91,7 @@ export class InvestmentController {
   getInvestmentRoi = async () => {
     // ================ GET ALL USERS WITH INVESTMENTS AND REFERRED USERS ================ //
     const users = await this.userRepository.find({
-      relations: ["investments", "referredUsers", "referredUsers.investments"], // Ensure investments for referred users are loaded
+      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"], // Ensure investments for referred users are loaded
     });
 
     for (let user of users) {
@@ -96,25 +100,69 @@ export class InvestmentController {
       // ======================= CALCULATE TOTAL INVESTMENT ======================= //
       const totalInvestment = user.investments.reduce((sum, investment) => sum + parseFloat(investment.amount.toString()), 0);
 
+      if(user.balance >= totalInvestment*3) continue;
+
       // ======================= CALCULATE ROI ======================= //
       const roi = this.investmentService.calculateInvestmentRoi(totalInvestment);
 
       // ======================= UPDATE USER BALANCE ======================= //
-      user.balance = parseFloat((Number(user.balance) + Number(roi)).toFixed(4));
+      user.claimable = parseFloat((Number(user.claimable) + Number(roi)).toFixed(4));
+
+      // ======================= ADD EARNINGS TO EARNINGS HISTORY ================= //
+      const newEarning = this.earningHistoryRepository.create({
+        amountEarned: roi,
+        user,
+        generationLevel: 0,
+      });
+      const addedEarning = await this.earningHistoryRepository.save(newEarning);
+      user.earningsHistory && user.earningsHistory.push(addedEarning);
 
       // ======================= CALCULATE REFERRAL BONUS IF APPLICABLE ======================= //
       if (user.referredUsers && user.referredUsers.length > 0) {
         console.log("running referral bonus");
         const referralBonus = await this.investmentService.calculateReferralBonus(user, 1);
         console.log("referral bonus: ", referralBonus);
-        user.balance = parseFloat((user.balance + referralBonus).toFixed(4));
+        user.claimable = parseFloat((user.claimable + referralBonus).toFixed(4));
       }
 
       // ====================== SAVE USER ====================== //
       await this.userRepository.save(user);
-      console.log(`User: ${user.email} ROI: ${roi}`);
-      console.log(`User: ${user.email} Balance: ${user.balance}`);
+      console.log(`User: ${user.wallet} ROI: ${roi}`);
+      console.log(`User: ${user.wallet} Balance: ${user.claimable}`);
     }
   };
+
+  claimEarnings = async (req: Request, res: Response, next: NextFunction) => {
+    const reqUser = req.user;
+    if (!reqUser) return next(new AppError("User not found", 400));
+
+    const user = await this.userRepository.findOne({
+      where: { wallet: reqUser.wallet }
+    });
+
+    if (!user) return next(new AppError("User not found", 400));
+
+    if (user.claimable <= 0) return next(new AppError("No earnings to claim", 400));
+
+    // ====================== CREATE NEW CLAIM ====================== //
+    const newClaim = this.claimRepository.create({
+      amount: user.claimable,
+      user
+    });
+
+    // ====================== SAVE NEW CLAIM ====================== //
+    await this.claimRepository.save(newClaim);
+
+    user.balance = parseFloat((Number(user.balance) + Number(user.claimable)).toFixed(4));
+    user.claimable = 0;
+    user.claims && user.claims.push(newClaim);
+
+    await this.userRepository.save(user);
+
+    res.status(200).json({
+      status: "success",
+      message: "Earnings claimed successfully"
+    });
+  }
   
 }

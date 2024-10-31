@@ -9,23 +9,27 @@ import {
 } from 'typeorm';
 import { Investment } from './investment.entity';
 import { EarningsHistory } from './earningHistory.entity';
+import { Claim } from './claim.entity';
 
 @Entity("users")
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
+  @Column({ unique: true })
   wallet!: string;
 
-  @Column({ unique: true })
-  email!: string;
+  // @Column({ unique: true })
+  // email!: string;
 
   @Column({ nullable: true })
   referralCode!: string;
 
   @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
   balance!: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
+  claimable!: number;
 
   @OneToMany( () => Investment, (investment) => investment.investor, { nullable: true })
   investments!: Investment[];
@@ -47,6 +51,9 @@ export class User {
 
   @OneToMany( () => EarningsHistory, (earningsHistory) => earningsHistory.user)
   earningsHistory!: EarningsHistory[];
+
+  @OneToMany( () => Claim, (claim) => claim.user)
+  claims!: Claim[];
 
   @CreateDateColumn()
   createdAt!: Date;

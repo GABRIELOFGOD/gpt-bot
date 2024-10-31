@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import catchAsync from "../utils/catchAsync";
 import { UserRegisterDto } from "../dtos/userRegister.dto";
 import { UserService } from "../services/user.service";
@@ -6,13 +6,15 @@ import { Repository } from "typeorm";
 import { User } from "../entities/user.entity";
 import { AppError } from "../services/error.service";
 import { getClientIp } from "request-ip";
-import { MailerService } from "../services/email.service";
+import { Request } from "../@types/custome";
+
+// import { MailerService } from "../services/email.service";
 
 export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly userRepository: Repository<User>,
-    private readonly mailService: MailerService
+    // private readonly mailService: MailerService
   ){}
 
   // ==================== USER REGISTER CONTROLLER ==================== //
@@ -22,7 +24,7 @@ export class UserController {
 
     // ================ CHECK IF USER EXISTS ================ //
     const existingUser = await this.userRepository.findOne({
-      where: { email: userRegisterDto.email },
+      where: { wallet: userRegisterDto.wallet },
     });
     if (existingUser) return next(new AppError("User already exists", 400));
 
@@ -30,6 +32,7 @@ export class UserController {
     const newUser = this.userRepository.create(userRegisterDto);
     newUser.referralCode = await this.userService.generateUniqueReferralCode();
     newUser.balance = 0;
+    newUser.claimable = 0;
     newUser.lastKnownIp = userIp || "";
 
     // ==================== REFERRAL CODE ==================== //
@@ -52,19 +55,19 @@ export class UserController {
 
   // ==================== USER LOGIN CONTROLLER ==================== //
   userLogin = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const { email, wallet } = req.body;
+    const { wallet } = req.body;
     const userIp = getClientIp(req) || req.ip || "";
 
     // ================= VERIFY USER CREDENTIALS ================= //
-    const user = await this.userRepository.findOne({ where: { email, wallet } });
+    const user = await this.userRepository.findOne({ where: { wallet } });
     if (!user) return next(new AppError("Invalid credentials", 401));
 
     // =================== SEND NEW IP NOTIFICATION =================== //
-    if (user.lastKnownIp !== userIp) {
-      await this.mailService.sendNewIpNotification(user.email, userIp);
-      user.lastKnownIp = userIp;
-      await this.userService.updateUser(user);
-    }
+    // if (user.lastKnownIp !== userIp) {
+    //   // await this.mailService.sendNewIpNotification(user.wallet, userIp);
+    //   user.lastKnownIp = userIp;
+    //   await this.userService.updateUser(user);
+    // }
 
     // ================= GENERATE AUTH TOKEN ================= //
     const authToken = this.userService.generateAuthToken(user);
@@ -76,6 +79,16 @@ export class UserController {
     });
   });
 
+  earningHistory = catchAsync(async (req: Request, res: Response) => {
+    const theUser = req.user;
+    const user = await this.userRepository.findOne({
+      where: { wallet: theUser.wallet },
+      relations: ["earningsHistory"],
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json({ history: user.earningsHistory });
+  }
+  );
 
   // ==================== GET ALL USERS CONTROLLER =================
   getAllUsers = catchAsync(async (req: Request, res: Response) => {
@@ -83,12 +96,11 @@ export class UserController {
     res.status(200).json({ users });
   });
 
-  getSingleUser = catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const userId = parseInt(id);
+  getUserProfile = catchAsync(async (req: Request, res: Response) => {
+    const theUser = req.user;
     const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ["referredBy", "referredUsers", "investments"],
+      where: { wallet: theUser.wallet },
+      relations: ["referredBy", "referredUsers", "investments", "claims"],
     });
     if (!user) return res.status(404).json({ message: "User not found" });
     res.status(200).json({ user });

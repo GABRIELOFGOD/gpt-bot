@@ -1,6 +1,6 @@
 import { Repository } from "typeorm";
 import { User } from "../entities/user.entity";
-import { MailerService } from "./email.service";
+// import { MailerService } from "./email.service";
 import { dataSource } from "../config/dataSource";
 import { EarningsHistory } from "../entities/earningHistory.entity";
 import cron from 'node-cron';
@@ -8,6 +8,8 @@ import cron from 'node-cron';
 export class InvestmentService {
   constructor(
     private readonly userRepository: Repository<User>,
+    private readonly earningHistoryRepository: Repository<EarningsHistory>
+
   ){}
   
   calculateInvestmentRoi(amount: number): number{
@@ -20,51 +22,148 @@ export class InvestmentService {
     return roi;
   }
 
+  criterialCalculator(user: User, level: number): boolean{
+    if(level > 20) return false;
+    if(level === 1) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
+      user.referredUsers.length >= 1;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
+      });
+      return true;
+    };
+    if(level === 2) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
+      user.referredUsers.length >= 2;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
+      });
+      return true;
+    };
+    if(level === 3) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200;
+      user.referredUsers.length >= 3;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      });
+      return true;
+    };
+    if(level === 4) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200;
+      user.referredUsers.length >= 4;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
+      });
+      return true;
+    };
+    if(level === 5) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
+      user.referredUsers.length >= 5;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
+      });
+      return true;
+    };
+    if(level === 6) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
+      user.referredUsers.length = level;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
+      });
+      return true;
+    };
+    if(level === 7) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      user.referredUsers.length = level;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
+      });
+      return true;
+    };
+    if(level === 8) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      user.referredUsers.length = level;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2000;
+      });
+      return true;
+    };
+    if(level === 9) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      user.referredUsers.length = level;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2000;
+      });
+      return true;
+    };
+    if(level === 10) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      user.referredUsers.length = level;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2500;
+      });
+      return true;
+    };
+    if(level >= 11 && level <= 15) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
+      user.referredUsers.length = 10;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 3000;
+      });
+      return true;
+    }
+    if(level >= 16 && level <= 20) {
+      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
+      user.referredUsers.length = 10;
+      user.referredUsers.forEach(referral => {
+        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 4000;
+      });
+      return true;
+    }
+    return false;
+  }
+
   async calculateReferralBonus(user: User, generation: number): Promise<number> {
     if (generation > 20) return 0;
 
     let bonus = 0;
-    const referrals = user.referredUsers || []; // Ensure referrals is an array, even if empty
+    const theUser = await this.userRepository.findOne({
+      where: { wallet: user.wallet },
+      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
+    });
 
-    console.log(`Processing ${referrals.length} referrals for generation ${generation}...`);
-    for (const referrary of referrals) {
-      const referral = await this.userRepository.findOne({
-        where: { email: referrary.email },
-        relations: ["investments", "referredUsers"],
-      });
+    if (!theUser) return 0;
 
-      if (!referral) continue;
-        // Check if investments exist
-        const totalInvestment = referral.investments 
-            ? referral.investments.reduce((sum, investment) => sum + parseFloat(investment.amount.toString()), 0) 
-            : 0;
+    if (!this.criterialCalculator(theUser, generation)) return 0;
 
-        // Determine bonus percentage based on generation and conditions
-        let bonusPercentage = 0;
-        if (generation === 1) {
-            bonusPercentage = 0.5;
-        } else if (generation === 2 && referrals.length >= 2 && totalInvestment >= 300) {
-            bonusPercentage = 0.3;
-        } else if (generation === 3 && referrals.length >= 3 && totalInvestment >= 500) {
-            bonusPercentage = 0.2;
-        } else if (generation === 4 && referrals.length >= 4 && totalInvestment >= 1000) {
-            bonusPercentage = 0.1;
-        } else if (generation === 5 && referrals.length >= 5 && totalInvestment >= 1000) {
-            bonusPercentage = 0.1;
-        } else if (generation >= 6 && generation <= 10 && referrals.length >= generation && totalInvestment >= 1500) {
-            bonusPercentage = 0.05;
-        } else if (generation >= 11 && generation <= 15 && referrals.length >= 10 && totalInvestment >= 3000) {
-            bonusPercentage = 0.03;
-        } else if (generation >= 16 && generation <= 20 && referrals.length >= 10 && totalInvestment >= 4000) {
-            bonusPercentage = 0.03;
-        }
+    const referrals = theUser.referredUsers;
 
-        // Calculate referral earnings
-        const referralDailyEarnings = totalInvestment <= 2000 ? totalInvestment * 0.001 : totalInvestment * 0.002;
-        bonus += referralDailyEarnings * bonusPercentage;
+    for (const referral of referrals) {
+      const referralTotalInvestment = referral.investments.reduce((sum, investment) => sum + investment.amount, 0);
+      let bonusPercentage = 0;
 
-        // Recursive call to handle further generations of referrals
-        bonus += await this.calculateReferralBonus(referral, generation + 1);
+      if (generation === 1) {
+        bonusPercentage = 0.5;
+      } else if (generation === 2) {
+        bonusPercentage = 0.3;
+      } else if (generation === 3) {
+        bonusPercentage = 0.2;
+      } else if (generation === 4) {
+        bonusPercentage = 0.1;
+      } else if (generation === 5) {
+        bonusPercentage = 0.1;
+      } else if (generation >= 6 && generation <= 10) {
+        bonusPercentage = 0.05;
+      } else if (generation >= 11 && generation <= 15) {
+        bonusPercentage = 0.03;
+      } else if (generation >= 16 && generation <= 20) {
+        bonusPercentage = 0.03;
+      }
+
+      const referralDailyEarnings = referralTotalInvestment <= 2000 ? referralTotalInvestment * 0.001 : referralTotalInvestment * 0.002;
+      bonus += referralDailyEarnings * bonusPercentage;
+
+      bonus += await this.calculateReferralBonus(referral, generation + 1);
     }
 
     return bonus;

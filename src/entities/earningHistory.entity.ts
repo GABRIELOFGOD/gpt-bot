@@ -9,7 +9,7 @@ export class EarningsHistory {
     @ManyToOne(() => User, user => user.earningsHistory)
     user!: User;
 
-    @Column()
+    @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
     amountEarned!: number;
 
     @Column({ nullable: true })
