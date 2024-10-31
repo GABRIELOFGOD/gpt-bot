@@ -17,7 +17,7 @@ let investmentRepository: Repository<Investment> = dataSource.getRepository(Inve
 
 let investmentController: InvestmentController;
 
-let investmentService = new InvestmentService();
+let investmentService = new InvestmentService(userRepository);
 investmentController = new InvestmentController(investmentService, userRepository, investmentRepository);
 
 

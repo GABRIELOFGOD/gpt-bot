@@ -13,7 +13,7 @@ export class EarningsHistory {
     amountEarned!: number;
 
     @Column({ nullable: true })
-    generationLevel?: number;  // Nullable for direct investment earnings
+    generationLevel?: number; 
 
     @CreateDateColumn()
     date!: Date;

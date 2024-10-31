@@ -24,7 +24,7 @@ export class User {
   @Column({ nullable: true })
   referralCode!: string;
 
-  @Column()
+  @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
   balance!: number;
 
   @OneToMany( () => Investment, (investment) => investment.investor, { nullable: true })
@@ -42,7 +42,7 @@ export class User {
   @Column({ default: "active" })
   status!: string;
 
-  @Column({ default: true })
+  @Column({ default: false })
   hasActiveInvestment!: boolean;
 
   @OneToMany( () => EarningsHistory, (earningsHistory) => earningsHistory.user)

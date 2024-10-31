@@ -10,3 +10,7 @@ Thank you for the questions, that's so mindful of you. For the first question, t
 
 ANOTHER PROMPT FOR CHATGPT
 There are some issues in this two functions applyEarnings and calculateReferralBonus. You have my user entity, you know there's nothing like totalInvestment, I only have investments relational table, there nothing like directReferrals as well, I only have the referrals relational table so let's rewrite this and also complete the calculateReferralBonus function. Even if you will be returning just the correct version of these two functions, I am ok just correct and complete it.
+
+
+copilot prompts
+I want you to create a self executing function that will run 00:00 GMT daily. The function will iterate through all user investments individually, if a user investment is at least 100, they are qualify for a daily return. For the daily return, if it is 2000 and below, they get 0.1% daily return, else they get 0.2% daily return. I will appreciate if you can break the code into functions as per functionality. Also there is referral reward but we will implement that later, let do this.
