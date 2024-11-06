@@ -24,7 +24,7 @@ const authMiddleware = catchAsync(async (req: Request, res: Response, next: Next
   }
 
   // =============== CHECKING IF USER IS BLOCKED =============== //
-  if (req.user && req.user.status === 'blocked') {
+  if (req.user && req.user.status === 'blocked' || req.user.status === 'deleted') {
     return next(new AppError('Your account has been blocked', 401));
   }
 

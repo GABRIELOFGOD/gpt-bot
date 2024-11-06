@@ -8,8 +8,10 @@ import { Repository } from "typeorm";
 import { Investment } from "../entities/investment.entity";
 import { EarningsHistory } from "../entities/earningHistory.entity";
 import { Claim } from "../entities/claim.entity";
+import cron from "node-cron";
 
 export class InvestmentController {
+  private isRunning = false;
   constructor(
     private investmentService: InvestmentService,
     private readonly userRepository: Repository<User>,
@@ -21,10 +23,27 @@ export class InvestmentController {
   }
 
   // ================= AUTO EXECUTE AFTER 20 SECONDS ================= //
-  autoExecute = () => {
-    setInterval(() => {
-      this.getInvestmentRoi();
-    }, 20000);
+  
+  private autoExecute() {
+    cron.schedule('0 0 * * *', async () => {
+      if (this.isRunning) {
+        console.log("Skipped execution: getInvestmentRoi is already running");
+        return;
+      }
+      
+      this.isRunning = true;  // Acquire the "lock"
+
+      try {
+        console.log("Running getInvestmentRoi...");
+        await this.getInvestmentRoi();  // Ensure this function is async to handle delays properly
+        console.log("getInvestmentRoi completed successfully");
+      } catch (error) {
+        console.error("Error in getInvestmentRoi:", error);
+        // Optionally, you can add a retry or notification mechanism here
+      } finally {
+        this.isRunning = false;  // Release the "lock"
+      }
+    });
   }
   
   createInvestment = catchAsync(async (req: Request, res: Response, next: NextFunction) => {

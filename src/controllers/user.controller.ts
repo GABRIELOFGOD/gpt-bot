@@ -18,66 +18,84 @@ export class UserController {
   ){}
 
   // ==================== USER REGISTER CONTROLLER ==================== //
-  userRegister = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  userRegisterOrLogin = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const userRegisterDto: UserRegisterDto = req.body;
-    const userIp = getClientIp(req);
+    const userIp = getClientIp(req) || req.ip || "";
 
     // ================ CHECK IF USER EXISTS ================ //
-    const existingUser = await this.userRepository.findOne({
+    let user = await this.userRepository.findOne({
       where: { wallet: userRegisterDto.wallet },
     });
-    if (existingUser) return next(new AppError("User already exists", 400));
 
-    // ==================== CREATE NEW USER ==================== //
-    const newUser = this.userRepository.create(userRegisterDto);
-    newUser.referralCode = await this.userService.generateUniqueReferralCode();
-    newUser.balance = 0;
-    newUser.claimable = 0;
-    newUser.lastKnownIp = userIp || "";
+    if (user) {
+      // ==================== LOGIN USER ==================== //
+      // =================== SEND NEW IP NOTIFICATION =================== //
+      if (user.lastKnownIp !== userIp) {
+        // await this.mailService.sendNewIpNotification(user.wallet, userIp);
+        user.lastKnownIp = userIp;
+        await this.userService.updateUser(user);
+      }
 
-    // ==================== REFERRAL CODE ==================== //
-    if (userRegisterDto.referralCode) {
-      const referredByUser = await this.userRepository.findOne({
-        where: { referralCode: userRegisterDto.referralCode },
+      // ================= GENERATE AUTH TOKEN ================= //
+      const authToken = this.userService.generateAuthToken(user);
+
+      // ================= SEND RESPONSE ================= //
+      return res.status(200).json({
+        message: "Login successful",
+        token: authToken,
       });
-      if (!referredByUser) return next(new AppError("Referral code is invalid", 400));
-      newUser.referredBy = referredByUser;
+    } else {
+      // ==================== REGISTER NEW USER ==================== //
+      const newUser = this.userRepository.create(userRegisterDto);
+      newUser.referralCode = await this.userService.generateUniqueReferralCode();
+      newUser.balance = 0;
+      newUser.claimable = 0;
+      newUser.lastKnownIp = userIp;
+
+      // ==================== REFERRAL CODE ==================== //
+      if (userRegisterDto.referralCode) {
+        const referredByUser = await this.userRepository.findOne({
+          where: { referralCode: userRegisterDto.referralCode },
+        });
+        if (!referredByUser) return next(new AppError("Referral code is invalid", 400));
+        newUser.referredBy = referredByUser;
+      }
+
+      // ================= SEND NEW IP NOTIFICATION ================= //
+      await this.userRepository.save(newUser);
+
+      // ================= GENERATE AUTH TOKEN ================= //
+      const authToken = this.userService.generateAuthToken(newUser);
+      return res.status(201).json({ status: "User created successfully", token: authToken });
     }
-
-    // ================= SEND NEW IP NOTIFICATION ================= //
-    await this.userRepository.save(newUser);
-
-    // ================= GENERATE AUTH TOKEN ================= //
-    const authToken = this.userService.generateAuthToken(newUser);
-    res.status(201).json({ status: "User created successfully", token: authToken });
   });
 
 
   // ==================== USER LOGIN CONTROLLER ==================== //
-  userLogin = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const { wallet } = req.body;
-    const userIp = getClientIp(req) || req.ip || "";
+  // userLogin = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  //   const { wallet } = req.body;
+  //   const userIp = getClientIp(req) || req.ip || "";
 
-    // ================= VERIFY USER CREDENTIALS ================= //
-    const user = await this.userRepository.findOne({ where: { wallet } });
-    if (!user) return next(new AppError("Invalid credentials", 401));
+  //   // ================= VERIFY USER CREDENTIALS ================= //
+  //   const user = await this.userRepository.findOne({ where: { wallet } });
+  //   if (!user) return next(new AppError("Invalid credentials", 401));
 
-    // =================== SEND NEW IP NOTIFICATION =================== //
-    // if (user.lastKnownIp !== userIp) {
-    //   // await this.mailService.sendNewIpNotification(user.wallet, userIp);
-    //   user.lastKnownIp = userIp;
-    //   await this.userService.updateUser(user);
-    // }
+  //   // =================== SEND NEW IP NOTIFICATION =================== //
+  //   // if (user.lastKnownIp !== userIp) {
+  //   //   // await this.mailService.sendNewIpNotification(user.wallet, userIp);
+  //   //   user.lastKnownIp = userIp;
+  //   //   await this.userService.updateUser(user);
+  //   // }
 
-    // ================= GENERATE AUTH TOKEN ================= //
-    const authToken = this.userService.generateAuthToken(user);
+  //   // ================= GENERATE AUTH TOKEN ================= //
+  //   const authToken = this.userService.generateAuthToken(user);
 
-    // ================= SEND RESPONSE ================= //
-    res.status(200).json({
-      message: "Login successful",
-      token: authToken,
-    });
-  });
+  //   // ================= SEND RESPONSE ================= //
+  //   res.status(200).json({
+  //     message: "Login successful",
+  //     token: authToken,
+  //   });
+  // });
 
   earningHistory = catchAsync(async (req: Request, res: Response) => {
     const theUser = req.user;

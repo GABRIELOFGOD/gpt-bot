@@ -16,8 +16,8 @@ let userService = new UserService(userRepository);
 // let mailService = new MailerService();
 userController = new UserController(userService, userRepository);
 
-router.post("/register", validateRequest(UserSchema.createUser), userController.userRegister);
-router.post("/login", validateRequest(UserSchema.loginUser), userController.userLogin);
+router.post("/register", validateRequest(UserSchema.createUser), userController.userRegisterOrLogin);
+router.post("/login", validateRequest(UserSchema.loginUser), userController.userRegisterOrLogin);
 // router.get("/:id", userController.getSingleUser);
 
 // =============== THIS ENDPOINTS WILL BE DISABLED FOR PRODUCTION =============== //
