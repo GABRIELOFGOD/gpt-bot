@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node dist/index.js",
     "start:dev": "nodemon src/index.ts",
-    "build": "tsc scr/index.ts",
+    "build": "tsc",
     "test": "jest"
   },
   "author": "GABRIELOFGOD",
