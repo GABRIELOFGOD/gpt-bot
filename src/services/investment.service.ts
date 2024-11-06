@@ -22,103 +22,160 @@ export class InvestmentService {
     return roi;
   }
 
-  criterialCalculator(user: User, level: number): boolean{
+  async criterialCalculator(theUser: User, level: number): Promise<boolean>{
+    const user = await this.userRepository.findOne({
+      where: {
+        wallet: theUser.wallet
+      },
+      relations: ["referredUsers", "investments", "referredUsers.investments"]
+    });
+
+    if(!user) return false;
+    
     if(level > 20) return false;
     if(level === 1) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
-      user.referredUsers.length >= 1;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100 && user.referredUsers && user.referredUsers.length >= 1 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 100;
+      })) return true;
+      return false;
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
+      // user.referredUsers.length >= 1;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
+      // });
+      // return true;
     };
     if(level === 2) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
-      user.referredUsers.length >= 2;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100 && user.referredUsers && user.referredUsers.length >= 2 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 300;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
+      // user.referredUsers.length >= 2;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
+      // });
+      return false;
     };
     if(level === 3) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200;
-      user.referredUsers.length >= 3;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200 && user.referredUsers && user.referredUsers.length >= 3 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 500;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200;
+      // user.referredUsers.length >= 3;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      // });
+      return false;
     };
     if(level === 4) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200;
-      user.referredUsers.length >= 4;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200 && user.referredUsers && user.referredUsers.length >= 4 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 1000;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 200;
+      // user.referredUsers.length >= 4;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
+      // });
+      return false;
     };
     if(level === 5) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
-      user.referredUsers.length >= 5;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
-      });
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300 && user.referredUsers && user.referredUsers.length >= 5 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 1000;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
+      // user.referredUsers.length >= 5;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
+      // });
       return true;
     };
     if(level === 6) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
-      user.referredUsers.length = level;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300 && user.referredUsers && user.referredUsers.length >= 6 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 1500;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
+      // user.referredUsers.length = level;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
+      // });
+      return false;
     };
     if(level === 7) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
-      user.referredUsers.length = level;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500 && user.referredUsers && user.referredUsers.length >= 7 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 1500;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      // user.referredUsers.length = level;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
+      // });
+      return false;
     };
     if(level === 8) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
-      user.referredUsers.length = level;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2000;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500 && user.referredUsers && user.referredUsers.length >= 8 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 2000;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      // user.referredUsers.length = level;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2000;
+      // });
+      return false;
     };
     if(level === 9) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
-      user.referredUsers.length = level;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2000;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500 && user.referredUsers && user.referredUsers.length >= 9 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 2000;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      // user.referredUsers.length = level;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2000;
+      // });
+      return false;
     };
     if(level === 10) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
-      user.referredUsers.length = level;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2500;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500 && user.referredUsers && user.referredUsers.length >= 10 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 2500;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 500;
+      // user.referredUsers.length = level;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 2500;
+      // });
+      return false;
     };
     if(level >= 11 && level <= 15) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
-      user.referredUsers.length = 10;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 3000;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000 && user.referredUsers && user.referredUsers.length >= 10 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 3000;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1000;
+      // user.referredUsers.length = 10;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 3000;
+      // });
+      return false;
     }
     if(level >= 16 && level <= 20) {
-      user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
-      user.referredUsers.length = 10;
-      user.referredUsers.forEach(referral => {
-        referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 4000;
-      });
-      return true;
+      if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500 && user.referredUsers && user.referredUsers.length >= 10 && user.referredUsers.every(referral => {
+        return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 4000;
+      })) return true;
+      
+      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 1500;
+      // user.referredUsers.length = 10;
+      // user.referredUsers.forEach(referral => {
+      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 4000;
+      // });
+      return false;
     }
     return false;
   }
@@ -133,8 +190,8 @@ export class InvestmentService {
     });
 
     if (!theUser) return 0;
-
-    if (!this.criterialCalculator(theUser, generation)) return 0;
+    const checkCriteria = await this.criterialCalculator(theUser, generation);
+    if (!checkCriteria) return 0;
 
     const referrals = theUser.referredUsers;
 
