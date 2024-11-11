@@ -4,10 +4,11 @@
   "description": "This api is designed for gptbot investment website by GABRIELOFGOD",
   "main": "index.js",
   "scripts": {
-    "start": "node dist/index.js",
+    "start": "node build/index.js",
     "start:dev": "nodemon src/index.ts",
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "migration:run": "typeorm migration:run"
   },
   "author": "GABRIELOFGOD",
   "license": "ISC",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/morgan": "^1.9.9",

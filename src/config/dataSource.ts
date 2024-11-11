@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { Investment } from '../entities/investment.entity';
 import { EarningsHistory } from '../entities/earningHistory.entity';
 import { Claim } from '../entities/claim.entity';
+import { Withdrawal } from '../entities/withrawal.entity';
 
 config();
 
@@ -15,6 +16,6 @@ export const dataSource = new DataSource({
   username: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  entities: [User, Investment, EarningsHistory, Claim],
+  entities: [User, Investment, EarningsHistory, Claim, Withdrawal],
   synchronize: true,
 });

@@ -24,6 +24,27 @@ export class InvestmentController {
 
   // ================= AUTO EXECUTE AFTER 20 SECONDS ================= //
   
+  // private autoExecute() {
+  //   cron.schedule('0/40 * * * * *', async () => {
+  //     if (this.isRunning) {
+  //       console.log("Skipped execution: getInvestmentRoi is already running");
+  //       return;
+  //     }
+      
+  //     this.isRunning = true;  // Acquire the "lock"
+
+  //     try {
+  //       console.log("Running getInvestmentRoi...");
+  //       await this.getInvestmentRoi();  // Ensure this function is async to handle delays properly
+  //       console.log("getInvestmentRoi completed successfully");
+  //     } catch (error) {
+  //       console.error("Error in getInvestmentRoi:", error);
+  //       // Optionally, you can add a retry or notification mechanism here
+  //     } finally {
+  //       this.isRunning = false;  // Release the "lock"
+  //     }
+  //   });
+  // }
   private autoExecute() {
     cron.schedule('0 0 * * *', async () => {
       if (this.isRunning) {
@@ -62,6 +83,9 @@ export class InvestmentController {
     });
 
     if (!user) return next(new AppError("User not found", 400));
+    
+    // ============== CHECK USER ================== //
+    if(user.role !== "user") return next(new AppError("You are not allowed to invest", 400))
 
     // ======================= CREATE NEW INVESTMENT ======================= //
     const newInvestment = this.investmentRepository.create({
@@ -110,7 +134,7 @@ export class InvestmentController {
   getInvestmentRoi = async () => {
     // ================ GET ALL USERS WITH INVESTMENTS AND REFERRED USERS ================ //
     const users = await this.userRepository.find({
-      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"], // Ensure investments for referred users are loaded
+      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
     });
 
     for (let user of users) {

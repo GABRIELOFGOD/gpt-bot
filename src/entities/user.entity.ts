@@ -10,6 +10,7 @@ import {
 import { Investment } from './investment.entity';
 import { EarningsHistory } from './earningHistory.entity';
 import { Claim } from './claim.entity';
+import { Withdrawal } from './withrawal.entity';
 
 @Entity("users")
 export class User {
@@ -43,6 +44,9 @@ export class User {
   @Column()
   lastKnownIp!: string;
 
+  @Column({ type: "enum", enum: ["admin", "user", "developer"], default: "user" })
+  role!: "admin" | "user" | "developer";
+
   @Column({ default: "active" })
   status!: string;
 
@@ -51,6 +55,9 @@ export class User {
 
   @OneToMany( () => EarningsHistory, (earningsHistory) => earningsHistory.user)
   earningsHistory!: EarningsHistory[];
+
+  @OneToMany( () => Withdrawal, (withdrawalHistory) => withdrawalHistory.user )
+  withdrawalHistory!: Withdrawal
 
   @OneToMany( () => Claim, (claim) => claim.user)
   claims!: Claim[];

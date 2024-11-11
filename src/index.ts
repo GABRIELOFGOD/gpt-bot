@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import 'reflect-metadata';
 import { dataSource } from './config/dataSource';
 import dbConfig from './config/database.config';
+import cors from "cors";
 
 // =============== ROUTES ============== //
 import userRoute from './routes/user.route';
@@ -19,6 +20,14 @@ const port = process.env.PORT || 5000;
 app.use(morgan("dev"));
 app.use(helmet());
 app.use(express.json());
+
+app.use(cors({
+  origin: process.env.CLIENT_ORIGIN,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 dbConfig();
 
 app.get('/', (req: Request, res: Response) => res.status(200).json("HELLO FROM GBTBOT SERVER"));
