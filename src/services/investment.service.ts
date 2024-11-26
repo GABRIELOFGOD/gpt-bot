@@ -4,12 +4,13 @@ import { User } from "../entities/user.entity";
 import { dataSource } from "../config/dataSource";
 import { EarningsHistory } from "../entities/earningHistory.entity";
 import cron from 'node-cron';
+import { Investment } from "../entities/investment.entity";
 
 export class InvestmentService {
   constructor(
     private readonly userRepository: Repository<User>,
-    private readonly earningHistoryRepository: Repository<EarningsHistory>
-
+    private readonly earningHistoryRepository: Repository<EarningsHistory>,
+    private readonly investmentRepository: Repository<Investment>
   ){}
   
   calculateInvestmentRoi(amount: number): number{
@@ -25,7 +26,7 @@ export class InvestmentService {
   async criterialCalculator(theUser: User, level: number): Promise<boolean>{
     const user = await this.userRepository.findOne({
       where: {
-        wallet: theUser.wallet
+        email: theUser.email
       },
       relations: ["referredUsers", "investments", "referredUsers.investments"]
     });
@@ -180,62 +181,62 @@ export class InvestmentService {
     return false;
   }
 
-  async calculateReferralBonus(user: User, generation: number, cUser?: User): Promise<number> {
-    if (generation > 20) return 0;
-    // console.log("Running at generation", generation);
+  // async calculateReferralBonus(user: User, generation: number, cUser?: User): Promise<number> {
+  //   if (generation > 20) return 0;
+  //   // console.log("Running at generation", generation);
 
-    let bonus = 0;
-    const theUser = await this.userRepository.findOne({
-      where: { wallet: user.wallet },
-      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory", "referredUsers.referredUsers"],
-    });
+  //   let bonus = 0;
+  //   const theUser = await this.userRepository.findOne({
+  //     where: { wallet: user.wallet },
+  //     relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory", "referredUsers.referredUsers"],
+  //   });
 
-    if (!theUser) return 0;
+  //   if (!theUser) return 0;
 
-    const criteriaUser = cUser || user;
-    const checkCriteria = await this.criterialCalculator(criteriaUser, generation);
-    if (!checkCriteria) return 0;
+  //   const criteriaUser = cUser || user;
+  //   const checkCriteria = await this.criterialCalculator(criteriaUser, generation);
+  //   if (!checkCriteria) return 0;
 
-    const referrals = theUser.referredUsers;
+  //   const referrals = theUser.referredUsers;
 
-    for (const theReferral of referrals) {
-      const referral = await this.userRepository.findOne({
-        where: { wallet: theReferral.wallet },
-        relations: ["investments", "referredUsers"]
-      });
-      if (!referral) continue;
+  //   for (const theReferral of referrals) {
+  //     const referral = await this.userRepository.findOne({
+  //       where: { wallet: theReferral.wallet },
+  //       relations: ["investments", "referredUsers"]
+  //     });
+  //     if (!referral) continue;
 
-      const referralTotalInvestment = referral.investments.reduce((sum, investment) => sum + investment.amount, 0);
-      let bonusPercentage = 0;
+  //     const referralTotalInvestment = referral.investments.reduce((sum, investment) => sum + investment.amount, 0);
+  //     let bonusPercentage = 0;
 
-      if (generation === 1) {
-        bonusPercentage = 0.5;
-      } else if (generation === 2) {
-        bonusPercentage = 0.3;
-      } else if (generation === 3) {
-        bonusPercentage = 0.2;
-      } else if (generation === 4) {
-        bonusPercentage = 0.1;
-      } else if (generation === 5) {
-        bonusPercentage = 0.1;
-      } else if (generation >= 6 && generation <= 10) {
-        bonusPercentage = 0.05;
-      } else if (generation >= 11 && generation <= 15) {
-        bonusPercentage = 0.03;
-      } else if (generation >= 16 && generation <= 20) {
-        bonusPercentage = 0.03;
-      }
+  //     if (generation === 1) {
+  //       bonusPercentage = 0.5;
+  //     } else if (generation === 2) {
+  //       bonusPercentage = 0.3;
+  //     } else if (generation === 3) {
+  //       bonusPercentage = 0.2;
+  //     } else if (generation === 4) {
+  //       bonusPercentage = 0.1;
+  //     } else if (generation === 5) {
+  //       bonusPercentage = 0.1;
+  //     } else if (generation >= 6 && generation <= 10) {
+  //       bonusPercentage = 0.05;
+  //     } else if (generation >= 11 && generation <= 15) {
+  //       bonusPercentage = 0.03;
+  //     } else if (generation >= 16 && generation <= 20) {
+  //       bonusPercentage = 0.03;
+  //     }
 
-      const referralDailyEarnings = referralTotalInvestment <= 2000 ? referralTotalInvestment * 0.001 : referralTotalInvestment * 0.002;
-      bonus += referralDailyEarnings * bonusPercentage;
+  //     const referralDailyEarnings = referralTotalInvestment <= 2000 ? referralTotalInvestment * 0.001 : referralTotalInvestment * 0.002;
+  //     bonus += referralDailyEarnings * bonusPercentage;
 
-      if (referral.referredUsers && referral.referredUsers.length > 0) {
-        bonus += await this.calculateReferralBonus(referral, generation + 1, criteriaUser);
-      }
-    }
+  //     if (referral.referredUsers && referral.referredUsers.length > 0) {
+  //       bonus += await this.calculateReferralBonus(referral, generation + 1, criteriaUser);
+  //     }
+  //   }
 
-    return bonus;
-  }
+  //   return bonus;
+  // }
 
   // =========================== SECOND OPTIMIZATION ============================ //
   // async criterialCalculator(theUser: User, level: number): Promise<boolean> {
@@ -409,4 +410,63 @@ export class InvestmentService {
   //   return bonus;
   // }
 
+
+  async calculateReferralBonus(investment: Investment, generation: number, user?: User): Promise<boolean> {
+    if (generation > 20) return false;
+  
+    // Determine the user to process
+    const currentUser = user || investment.investor;
+  
+    // Validate criteria for the current user
+    const isEligible = await this.criterialCalculator(currentUser, generation);
+    if (!isEligible) return false;
+  
+    // Fetch user with referral relationships
+    const fetchedUser = await this.userRepository.findOne({
+      where: { email: currentUser.email },
+      relations: ["referredBy", "referredUsers"],
+    });
+  
+    if (!fetchedUser) {
+      console.error(`User not found: ${currentUser.email}`);
+      return false;
+    }
+  
+    // Calculate ROI and referral bonus for the current generation
+    const roi = this.calculateInvestmentRoi(investment.amount);
+    let bonusPercentage = 0;
+  
+    if (generation === 1) {
+      bonusPercentage = 0.5;
+    } else if (generation === 2) {
+      bonusPercentage = 0.3;
+    } else if (generation === 3) {
+      bonusPercentage = 0.2;
+    } else if (generation === 4 || generation === 5) {
+      bonusPercentage = 0.1;
+    } else if (generation >= 6 && generation <= 10) {
+      bonusPercentage = 0.05;
+    } else if (generation >= 11 && generation <= 20) {
+      bonusPercentage = 0.03;
+    }
+  
+    // Update claimable referral bonus
+    const referralBonus = parseFloat((roi * bonusPercentage).toFixed(4));
+    fetchedUser.claimableRef = parseFloat((Number(fetchedUser.claimableRef || 0) + referralBonus).toFixed(4));
+  
+    // Save updated user
+    await this.userRepository.save(fetchedUser);
+  
+    console.log(
+      `Generation ${generation}: Added referral bonus ${referralBonus} to ${fetchedUser.email}. Total ClaimableRef: ${fetchedUser.claimableRef}`
+    );
+  
+    // Recursively process referred user
+    if (fetchedUser.referredBy) {
+      await this.calculateReferralBonus(investment, generation + 1, fetchedUser.referredBy);
+    }
+  
+    return true;
+  }  
+  
 }

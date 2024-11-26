@@ -12,6 +12,9 @@ export class Withdrawal {
   @ManyToOne(() => User, (user) => user.claims, { nullable: true })
   user!: User;
 
+  @Column({ nullable: true })
+  transactionId!: string;
+
   @Column({
     type: "enum",
     enum: ["processing", "failed", "completed"],
@@ -22,3 +25,5 @@ export class Withdrawal {
   @CreateDateColumn()
   createdAt!: Date;
 }
+
+// UPDATE users SET role = 'admin' WHERE id = 6;

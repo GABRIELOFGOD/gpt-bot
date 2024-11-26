@@ -18,8 +18,8 @@ let userService = new UserService(userRepository);
 // let mailService = new MailerService();
 userController = new UserController(userService, userRepository, withdrawalRespository);
 
-router.post("/register", validateRequest(UserSchema.createUser), userController.userRegisterOrLogin);
-router.post("/login", validateRequest(UserSchema.loginUser), userController.userRegisterOrLogin);
+router.post("/register", validateRequest(UserSchema.createUser), userController.userRegister);
+router.post("/login", validateRequest(UserSchema.loginUser), userController.userLogin);
 // router.get("/:id", userController.getSingleUser);
 
 router.use(authMiddleware);
@@ -27,6 +27,7 @@ router.delete("/:id", userController.deleteUser);
 router.get("/", userController.getAllUsers);
 router.get("/profile", userController.getUserProfile);
 router.get("/history", userController.earningHistory);
+// router.get("/downlines", userController.getAllDownlines);
 router.route("/withdrawal").get(userController.getAllWithdrawal).post(userController.withdrawal);
 router.get("/withdrawal/history", userController.withdrawalHistory);
 router.post("/withdrawal/approve", userController.approveWithdrawal);

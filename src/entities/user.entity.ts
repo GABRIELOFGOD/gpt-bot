@@ -17,11 +17,20 @@ export class User {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ unique: true })
+  @Column({ unique: true, nullable: true })
   wallet!: string;
 
-  // @Column({ unique: true })
-  // email!: string;
+  @Column({ unique: true })
+  email!: string;
+
+  @Column()
+  name!: string;
+
+  @Column()
+  phone!: string;
+
+  @Column()
+  password!: string;
 
   @Column({ nullable: true })
   referralCode!: string;
@@ -30,7 +39,13 @@ export class User {
   balance!: number;
 
   @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
-  claimable!: number;
+  gptBalance!: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
+  claimableROI!: number;
+
+  @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
+  claimableRef!: number;
 
   @OneToMany( () => Investment, (investment) => investment.investor, { nullable: true })
   investments!: Investment[];
@@ -57,7 +72,7 @@ export class User {
   earningsHistory!: EarningsHistory[];
 
   @OneToMany( () => Withdrawal, (withdrawalHistory) => withdrawalHistory.user )
-  withdrawalHistory!: Withdrawal
+  withdrawalHistory!: Withdrawal[];
 
   @OneToMany( () => Claim, (claim) => claim.user)
   claims!: Claim[];

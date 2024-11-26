@@ -23,7 +23,7 @@ let earningHistoryRepository: Repository<EarningsHistory> = dataSource.getReposi
 
 let claimRepository: Repository<Claim> = dataSource.getRepository(Claim);
 
-let investmentService = new InvestmentService(userRepository, earningHistoryRepository);
+let investmentService = new InvestmentService(userRepository, earningHistoryRepository, investmentRepository);
 investmentController = new InvestmentController(investmentService, userRepository, investmentRepository, earningHistoryRepository, claimRepository);
 
 
@@ -31,6 +31,6 @@ investmentController = new InvestmentController(investmentService, userRepositor
 router.use(authMiddleware);
 
 router.post("/invest", validateRequest(InvestmentSchema.createInvestment), investmentController.createInvestment);
-router.post("/claim", investmentController.claimEarnings);
+router.post("/claim", investmentController.claimRefEarnings);
 
 export default router;

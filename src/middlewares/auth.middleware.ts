@@ -4,6 +4,9 @@ import catchAsync from "../utils/catchAsync";
 import { AppError } from "../services/error.service";
 import * as jwt from 'jsonwebtoken';
 import { Request } from "../@types/custome";
+import {  config } from 'dotenv';
+
+config();
 
 const authMiddleware = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -13,9 +16,10 @@ const authMiddleware = catchAsync(async (req: Request, res: Response, next: Next
   const token = authHeader.split(' ')[1];
 
   if (!token) return next(new AppError('Token is missing', 401));
-
+  // console.log("token", token);
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    // console.log(decoded);
     req.user = decoded;  // Now this should not throw an error
     req.token = token;   // Now this should not throw an error
   } catch (err: any) {

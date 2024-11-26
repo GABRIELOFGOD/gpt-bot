@@ -22,7 +22,7 @@ app.use(helmet());
 app.use(express.json());
 
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN,
+  origin: [process.env.CLIENT_ORIGIN!, "http://localhost:5174"],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
