@@ -11,6 +11,7 @@ import cors from "cors";
 // =============== ROUTES ============== //
 import userRoute from './routes/user.route';
 import investmentRoute from './routes/investment.route';
+import coinRoute from './routes/coin.route';
 
 config();
 
@@ -22,7 +23,7 @@ app.use(helmet());
 app.use(express.json());
 
 app.use(cors({
-  origin: [process.env.CLIENT_ORIGIN!, "http://localhost:5174"],
+  origin: process.env.CLIENT_ORIGIN!,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -41,6 +42,7 @@ dataSource.initialize().then(() => {
 // =============== ERROR HANDLING ROUTES =========== //
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/investment", investmentRoute);
+app.use("/api/v1/coin", coinRoute);
 
 // =============== NOT FOUND ROUTE ==================== //
 app.all("*", (req: Request, res: Response, next) => {

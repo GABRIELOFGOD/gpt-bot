@@ -9,6 +9,9 @@ import { getClientIp } from "request-ip";
 import { Request } from "../@types/custome";
 import { Withdrawal } from "../entities/withrawal.entity";
 import validator from "validator";
+import { Downlines } from "../dtos/downlines";
+import { Investment } from "../entities/investment.entity";
+import { MailerService } from "../services/email.service";
 
 // import { MailerService } from "../services/email.service";
 
@@ -16,9 +19,12 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly userRepository: Repository<User>,
-    private readonly withdrawalRespository: Repository<Withdrawal>
-    // private readonly mailService: MailerService
+    private readonly withdrawalRespository: Repository<Withdrawal>,
+    private readonly investmentRepository: Repository<Investment>,
+    private readonly mailService: MailerService
   ){}
+
+  // const userRepository = Repository<User>;
 
   userRegister = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const userRegisterDto: UserRegisterDto = req.body;
@@ -33,6 +39,7 @@ export class UserController {
 
     // =================== VALIDATING PASSWORD =========================== //
     if(!validator.isEmail(userRegisterDto.email)) return next(new AppError("Invalid email address", 400));
+    if(!validator.isStrongPassword(userRegisterDto.password)) return next(new AppError("Password must contain at least 8 characters, 1 uppercase, 1 lowercase, 1 number and 1 symbol", 400));
     
       // ==================== REGISTER NEW USER ==================== //
     const newUser = this.userRepository.create(userRegisterDto);
@@ -52,14 +59,15 @@ export class UserController {
     }
 
     // ==================== ISSTRONG PASSWORD ==================== //
-    if(!validator.isStrongPassword(userRegisterDto.password)) return next(new AppError("Password must contain at least 8 characters, 1 uppercase, 1 lowercase, 1 number and 1 symbol", 400));
     
     // ==================== HASH PASSWORD ==================== //
     const hashedPassword = await this.userService.hashPassword(userRegisterDto.password);
     newUser.password = hashedPassword;
     
-    // ================= SEND NEW IP NOTIFICATION ================= //
     await this.userRepository.save(newUser);
+
+    // ==================== SEND WELCOME EMAIL ==================== //
+    await this.mailService.welcomeEmail(newUser.email);
 
     // ================= GENERATE AUTH TOKEN ================= //
     const authToken = this.userService.generateAuthToken(newUser);
@@ -108,7 +116,6 @@ export class UserController {
     if (!user) return next(new AppError("User not found", 404));
     res.status(200).json({ history: user.earningsHistory.reverse() });
   });
-
 
   // =========================== WITHRAWAL ======================== //
   withdrawal = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -184,10 +191,66 @@ export class UserController {
       relations: ["referredBy", "referredUsers", "investments", "claims", "withdrawalHistory"],
     });
     if (!user) return next(new AppError("User not found", 404))
-    const { role, password, ...userWithoutRole } = user;
+    const { password, ...userWithoutRole } = user;
     res.status(200).json({ user: userWithoutRole });
   });
 
+  swap = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const theUser = req.user;
+
+    // Fetch the user from the database
+    const user = await this.userRepository.findOne({
+      where: { email: theUser.email },
+    });
+
+    if (!user) return next(new AppError("User not found", 404));
+
+    const { amount, to }: { amount: number; to: "USDT" | "GPT" } = req.body;
+
+    // Validate inputs
+    if (!amount || amount <= 0 || !to) {
+      return next(new AppError("Invalid input data", 400));
+    }
+
+    // Conversion rates
+    const USDT_TO_GPT_RATE = 0.004; // Example rate
+    const GPT_TO_USDT_RATE = 1 / USDT_TO_GPT_RATE;
+
+    // Check for sufficient balance and perform swap
+    if (to === "USDT") {
+      if (user.gptBalance < amount) {
+        return next(new AppError("Insufficient GPT balance", 400));
+      }
+      const convertedAmount = amount * USDT_TO_GPT_RATE;
+      // console.log("convertedAmount to USDT", convertedAmount);
+      user.gptBalance = parseFloat((Number(user.gptBalance) - Number(amount)).toFixed(4));
+      user.balance = parseFloat((Number(user.balance) + Number(convertedAmount)).toFixed(4));
+      // user.balance += convertedAmount;
+    } else if (to === "GPT") {
+      if (user.balance < amount) {
+        return next(new AppError("Insufficient USDT balance", 400));
+      }
+      const convertedAmount = amount * GPT_TO_USDT_RATE;
+      // console.log("convertedAmount to GPT", convertedAmount);
+      user.balance = parseFloat((Number(user.balance) - Number(amount)).toFixed(4));
+      user.gptBalance = parseFloat((Number(user.gptBalance) + Number(convertedAmount)).toFixed(4));
+    } else {
+      return next(new AppError("Invalid target currency", 400));
+    }
+
+    // Save the updated user to the database
+    await this.userRepository.save(user);
+
+    // Respond with updated balances
+    return res.status(200).json({
+      status: "success",
+      message: "Swap successful",
+      data: {
+        balance: user.balance,
+        gptBalance: user.gptBalance,
+      },
+    });
+  });
 
   getAllDownlines = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
     const theUser = req.user;
@@ -212,7 +275,15 @@ export class UserController {
     res.status(204).json({ status: "User deleted successfully" });
   });
 
-
+  checkWallet = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const { wallet } = req.body;
+    if(!wallet) return next(new AppError("Wallet address is required", 400));
+    const user = await this.userRepository.findOne({
+      where: { wallet }
+    });
+    if(!user) return next(new AppError("Wallet address not found", 404));
+    res.status(200).json({ user });
+  });
 
   // =========================== WITHDRAWAL ============================== //
   approveWithdrawal = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
@@ -242,6 +313,168 @@ export class UserController {
     await this.withdrawalRespository.save(theWithdrawal);
 
     res.status(200).json({ message: "Withdrawal approved successfully" });
+  });
+
+  // =========================== ALL REFERERRED USERS ============================== //
+  // allReferredUsers = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  //   let allDownlines: Downlines[] = [];
+  //   const theUser = req.user;
+
+  //   // Fetch the user with their direct referrals
+  //   const user = await this.userRepository.findOne({
+  //       where: { email: theUser.email },
+  //       relations: ["referredUsers"],
+  //   });
+
+  //   if (!user) return next(new AppError("User not found", 404));
+
+  //   // Recursive function to get referrals up to the 20th generation
+  //   const fetchReferrals = async (currentUser: User, level: number) => {
+  //       if (level > 20 || !currentUser.referredUsers || currentUser.referredUsers.length === 0) return;
+
+  //       for (const referral of currentUser.referredUsers) {
+  //           // Fetch investments for the referral
+  //           const investments = await this.investmentRepository.find({
+  //               where: { investor: referral },
+  //               relations: ["investor"],
+  //           });
+  //           const totalInvestment = investments.reduce((sum, inv) => sum + inv.amount, 0);
+
+  //           // Add the referral to allDownlines
+  //           allDownlines.push({
+  //               name: referral.name,
+  //               email: referral.email,
+  //               phone: referral.phone || "N/A",
+  //               address: referral.wallet || "N/A",
+  //               level,
+  //               investment: totalInvestment,
+  //           });
+
+  //           // Recursively fetch the next generation
+  //           await fetchReferrals(referral, level + 1);
+  //       }
+  //   };
+
+  //   // Start fetching from the current user
+  //   await fetchReferrals(user, 1);
+
+  //   res.status(200).json({ data: allDownlines });
+  // });
+
+  allReferredUsers = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    let allDownlines: Downlines[] = [];
+    const theUser = req.user;
+
+    // Fetch the user with their direct referrals
+    const user = await this.userRepository.findOne({
+        where: { email: theUser.email },
+        relations: ["referredUsers"], // Fetch only direct referrals here
+    });
+
+    if (!user) return next(new AppError("User not found", 404));
+
+    // Recursive function to fetch referrals up to the 20th generation
+    const fetchReferrals = async (currentUser: User, level: number) => {
+        if (level > 20 || !currentUser.referredUsers || currentUser.referredUsers.length === 0) return;
+
+        for (const referral of currentUser.referredUsers) {
+            // Fetch investments for the referral
+            const investments = await this.investmentRepository.find({
+                where: { investor: referral },
+            });
+            const totalInvestment = investments.reduce((sum, inv) => sum + inv.amount, 0);
+
+            // Add the referral to allDownlines with its level
+            allDownlines.push({
+              ...referral, level
+            });
+
+            // Fetch the referral's own referrals recursively
+            const referralDetails = await this.userRepository.findOne({
+                where: { wallet: referral.wallet },
+                relations: ["referredUsers"], // Only fetch immediate referrals
+            });
+
+            if (referralDetails) {
+                await fetchReferrals(referralDetails, level + 1);
+            }
+        }
+    };
+
+    // Start fetching referrals from the top level
+    await fetchReferrals(user, 1);
+
+    res.status(200).json({ data: allDownlines });
+  });
+
+  toggleUserBlock = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const { userId } = req.body;
+    if (!userId) return next(new AppError("User ID is required to perform this operation", 400));
+    const theUser = req.user;
+    const user = await this.userRepository.findOne({
+      where: { email: theUser.email },
+    });
+    if (!user || user.role !== "admin") return next(new AppError("Sorry! you are not allowed to perform this operation.", 404));
+
+    const theUserToBlock = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!theUserToBlock) return next(new AppError("Invalid request, please reload and check user data again", 404));
+
+    theUserToBlock.status == "active" ? theUserToBlock.status = "blocked" : theUserToBlock.status = "active";
+    await this.userRepository.save(theUserToBlock);
+
+    res.status(200).json({ message: "User status updated successfully" });
+  });
+  
+  // ======================= GET ALL WITHDRAWAL ======================== //
+  getAllWithdrawalAdmin = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const theUser = req.user;
+    if(!theUser) return next(new AppError("Unauthorized request", 400));
+    const user = await this.userRepository.findOne({
+      where: { email: theUser.email },
+    });
+    if (!user || user.role !== "admin") return next(new AppError("Sorry! you are not allowed to perform this operation.", 404));
+    const withdrawals = await this.withdrawalRespository.find({
+      relations: ["user"],
+    }).then(withdrawals => withdrawals.reverse());
+    res.status(200).json({ withdrawals });
+  });
+
+
+  // ==================== FORGOT PASSWORD ===================== //
+  forgotPassword = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const { email } = req.body;
+    if(!email) return next(new AppError("Email address is required", 400));
+    const existedUser = await this.userRepository.findOne({
+      where: {email}
+    });
+
+    if(!existedUser) return next(new AppError("User not found", 404));
+
+    const token = this.userService.generateAuthToken(existedUser);
+    await this.mailService.sendPasswordResetEmail(existedUser.email, token);
+    res.status(200).json({message: "Password reset link sent to your email"});
+    
+  });
+
+  resetPassword = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+    const { token } = req.query;
+    const { password } = req.body;
+    
+    if(!token || !password) return next(new AppError("Invalid request", 400));
+    const decoded = this.userService.verifyAuthToken(token);
+    console.log("decoded", decoded);
+    if(!decoded) return next(new AppError("Invalid token", 400));
+    const user = await this.userRepository.findOne({
+      where: { email: decoded.email }
+    });
+    if(!user) return next(new AppError("User not found", 404));
+    const hashedPassword = await this.userService.hashPassword(password);
+    user.password = hashedPassword;
+    await this.userRepository.save(user);
+    res.status(200).json({message: "Password reset successful"});
   });
   
 }

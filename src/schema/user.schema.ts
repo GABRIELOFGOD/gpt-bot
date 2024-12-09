@@ -2,7 +2,7 @@ import Joi from 'joi';
 
 export class UserSchema {
   static createUser = Joi.object({
-    // wallet: Joi.string().required(),
+    wallet: Joi.string().required(),
     email: Joi.string().email().required(),
     name: Joi.string().required(),
     phone: Joi.string().required(),
@@ -14,6 +14,11 @@ export class UserSchema {
     // wallet: Joi.string().required(),
     email: Joi.string().email().required(),
     password: Joi.string().required(),
+  });
+
+  static swap = Joi.object({
+    amount: Joi.number().required(),
+    to: Joi.string().required(),
   });
 }
 

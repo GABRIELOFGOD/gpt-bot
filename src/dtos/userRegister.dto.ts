@@ -1,5 +1,5 @@
 export interface UserRegisterDto {
-  // wallet: string;
+  wallet: string;
   email: string;
   phone: string;
   password: string;

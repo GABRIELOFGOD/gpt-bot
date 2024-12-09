@@ -1,25 +1,16 @@
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { User } from "./user.entity";
 
-@Entity("investments")
-export class Investment {
+@Entity("price")
+export class Price {
   @PrimaryGeneratedColumn()
   id!: number;
-
-  @Column()
-  amount!: number;
-
-  @Column({ default: false })
-  expired!: boolean;
-
-  // @Column()
-  // transactionHash!: string;
-
+  
   @Column({ type: "decimal", precision: 10, scale: 4, default: "0.00" })
-  amountReturned!: number;
+  price!: number;
 
-  @ManyToOne( () => User, (user) => user.investments)
-  investor!: User;
+  @ManyToOne(() => User, (user) => user.claims, { nullable: true })
+  updatedBy!: User;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -10,12 +10,14 @@ import { EarningsHistory } from "../entities/earningHistory.entity";
 import { Claim } from "../entities/claim.entity";
 import cron from "node-cron";
 import { ethers } from "ethers";
+import { CoinService } from "../services/coin.service";
 
 
 export class InvestmentController {
   private isRunning = false;
   constructor(
     private investmentService: InvestmentService,
+    private readonly coinService: CoinService,
     private readonly userRepository: Repository<User>,
     private readonly investmentRepository: Repository<Investment>,
     private readonly earningHistoryRepository: Repository<EarningsHistory>,
@@ -27,7 +29,7 @@ export class InvestmentController {
   // ================= AUTO EXECUTE AFTER 20 SECONDS ================= //
   
   private autoExecute() {
-    cron.schedule('0/40 * * * * *', async () => {
+    cron.schedule('*/60 * * * * *', async () => {
       if (this.isRunning) {
         console.log("Skipped execution: getInvestmentRoi is already running");
         return;
@@ -71,10 +73,11 @@ export class InvestmentController {
   // }
   
   createInvestment = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
-    const { amount } = req.body;
+    const { amount, wallet } = req.body;
 
     // ============== VALIDATE REQUEST ============== //
     if (!amount) return next(new AppError("Amount is required", 400));
+    if (!wallet) return next(new AppError("Wallet address is required", 400));
 
     // ====================== GET USER ====================== //
     const reqUser = req.user;
@@ -88,7 +91,10 @@ export class InvestmentController {
     if (!user) return next(new AppError("User not found", 400));
     
     // ============== CHECK USER ================== //
-    if(user.role !== "user") return next(new AppError("You are not allowed to invest", 400))
+    if(user.role !== "user") return next(new AppError("You are not allowed to invest", 400));
+
+    // ======================= CONFIRM WALLET OWNER ======================== //
+    if (user.wallet !== wallet) return next(new AppError("Sorry you cannot invest with other people's wallet", 400));
 
     // ======================= CREATE NEW INVESTMENT ======================= //
     const newInvestment = this.investmentRepository.create({
@@ -248,76 +254,121 @@ export class InvestmentController {
   //   console.log(`User: ${user.wallet} Balance ref: ${user.claimableRef}`);
   //   console.log(`User: ${user.wallet} Balance: ${user.balance}`);
   // }
-  async getInvestmentRoi() {
-    try {
-      // Fetch all active investments from the database
-      const investments = await this.investmentRepository.find({ where: { expired: false } });
+  // async getInvestmentRoi() {
+  //   try {
+  //     // Fetch all active investments from the database
+  //     const investments = await this.investmentRepository.find({ where: { expired: false } });
   
-      for (const theInvestment of investments) {
-        const investment = await this.investmentRepository.findOne({
-          where: { id: theInvestment.id },
-          relations: ["investor", "investor.referredBy", "investor.referredBy.referredBy", "investor.investments", "investor.investments.investor"]
-        });
+  //     for (const theInvestment of investments) {
+  //       const investment = await this.investmentRepository.findOne({
+  //         where: { id: theInvestment.id },
+  //         relations: ["investor", "investor.referredBy", "investor.referredBy.referredBy", "investor.investments", "investor.investments.investor"]
+  //       });
 
-        if(!investment) continue;
+  //       if(!investment) continue;
         
-        // Calculate ROI based on investment amount
-        let roiPercentage = investment.amount < 2000 ? 0.001 : 0.002; // 0.1% or 0.2%
-        let roi = investment.amount * roiPercentage;
+  //       // Calculate ROI based on investment amount
+  //       let roiPercentage = investment.amount < 2000 ? 0.001 : 0.002; // 0.1% or 0.2%
+  //       let roi = investment.amount * roiPercentage;
   
-        // Update the user's wallet with the ROI
-        const user = investment.investor;
-        user.claimableROI = parseFloat((Number(user.balance) + Number(roi)).toFixed(4));
-        await this.userRepository.save(user);
+  //       // Update the user's wallet with the ROI
+  //       const user = investment.investor;
+  //       user.claimableROI = parseFloat((Number(user.claimableROI) + Number(roi)).toFixed(4));
+  //       await this.userRepository.save(user);
   
-        // Process referral commissions
-        if (user.referredBy) {
-          let referrer = await this.userRepository.findOne({
-            where: { email: user.referredBy.email }
-          });
-          let generation = 1;
+  //       // Process referral commissions
+  //       if (user.referredBy) {
+  //         let referrer = await this.userRepository.findOne({
+  //           where: { email: user.referredBy.email }
+  //         });
+  //         let generation = 1;
   
-          while (referrer && generation <= 20) {
-            // Calculate referral bonus percentage for the current generation
-            let bonusPercentage = 0;
-            if (generation === 1) bonusPercentage = 0.5;
-            else if (generation === 2) bonusPercentage = 0.3;
-            else if (generation === 3) bonusPercentage = 0.2;
-            else if (generation === 4 || generation === 5) bonusPercentage = 0.1;
-            else if (generation >= 6 && generation <= 10) bonusPercentage = 0.05;
-            else if (generation >= 11 && generation <= 20) bonusPercentage = 0.03;
+  //         while (referrer && generation <= 20) {
+  //           // Calculate referral bonus percentage for the current generation
+  //           let bonusPercentage = 0;
+  //           if (generation === 1) bonusPercentage = 0.5;
+  //           else if (generation === 2) bonusPercentage = 0.3;
+  //           else if (generation === 3) bonusPercentage = 0.2;
+  //           else if (generation === 4 || generation === 5) bonusPercentage = 0.1;
+  //           else if (generation >= 6 && generation <= 10) bonusPercentage = 0.05;
+  //           else if (generation >= 11 && generation <= 20) bonusPercentage = 0.03;
   
-            // Calculate referral commission from the valid investment's ROI
-            let referralCommission = roi * bonusPercentage;
+  //           // Calculate referral commission from the valid investment's ROI
+  //           let referralCommission = roi * bonusPercentage;
   
-            // Add commission to the referrer's wallet
-            referrer.claimableRef = parseFloat((Number(user.claimableRef) + Number(referralCommission)).toFixed(4));
-            await this.userRepository.save(referrer);
+  //           // Add commission to the referrer's wallet
+  //           referrer.claimableRef = parseFloat((Number(user.claimableRef) + Number(referralCommission)).toFixed(4));
+  //           await this.userRepository.save(referrer);
   
-            // Move to the next generation's referrer (upline)
-            referrer = await this.userRepository.findOne({
-              where: { email: referrer.referredBy?.email }
-            });
+  //           // Move to the next generation's referrer (upline)
+  //           referrer = await this.userRepository.findOne({
+  //             where: { email: referrer.referredBy?.email }
+  //           });
 
-            generation++;
+  //           generation++;
             
-          }
-        }
+  //         }
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error calculating ROI and referral commissions:", error);
+  //   }
+  // }
+
+  getInvestmentRoi = async () => {
+    // ================ GET ALL USERS WITH INVESTMENTS AND REFERRED USERS ================ //
+    const users = await this.userRepository.find({
+      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
+    });
+
+    for (let user of users) {
+      if (!user.investments || user.investments.length === 0) continue;
+
+      // ======================= CALCULATE TOTAL INVESTMENT ======================= //
+      const totalInvestment = user.investments.reduce((sum, investment) => sum + parseFloat(investment.amount.toString()), 0);
+
+      if(user.balance >= totalInvestment*3) continue;
+
+      // ======================= CALCULATE ROI ======================= //
+      const roi = this.investmentService.calculateInvestmentRoi(totalInvestment);
+
+      // ======================= UPDATE USER BALANCE ======================= //
+      user.claimableROI = parseFloat((Number(user.claimableROI) + Number(roi)).toFixed(4));
+
+      // ======================= ADD EARNINGS TO EARNINGS HISTORY ================= //
+      const newEarning = this.earningHistoryRepository.create({
+        amountEarned: roi,
+        user,
+        generationLevel: 0,
+      });
+      const addedEarning = await this.earningHistoryRepository.save(newEarning);
+      user.earningsHistory && user.earningsHistory.push(addedEarning);
+
+      // ======================= CALCULATE REFERRAL BONUS IF APPLICABLE ======================= //
+      if (user.referredUsers && user.referredUsers.length > 0) {
+        console.log("running referral bonus");
+        const referralBonus = await this.investmentService.calculateReferralBonus(user, 1);
+        console.log("referral bonus: ", referralBonus);
+        user.claimableRef = parseFloat((Number(user.claimableRef) + Number(referralBonus)).toFixed(4));
       }
-    } catch (error) {
-      console.error("Error calculating ROI and referral commissions:", error);
+
+      // ====================== SAVE USER ====================== //
+      await this.userRepository.save(user);
+      console.log(`User: ${user.wallet} ROI: ${roi}`);
+      console.log(`User: ${user.wallet} Balance: ${user.claimableROI}`);
     }
-  }
+  };
   
 
   claimRefEarnings = async (req: Request, res: Response, next: NextFunction) => {
+
+    // ====================== GET USER ====================== //
     const reqUser = req.user;
     if (!reqUser) return next(new AppError("User not found", 400));
 
     const user = await this.userRepository.findOne({
       where: { email: reqUser.email }
     });
-
     if (!user) return next(new AppError("User not found", 400));
 
     if (user.claimableRef <= 0) return next(new AppError("No earnings to claim", 400));
@@ -331,15 +382,96 @@ export class InvestmentController {
     // ====================== SAVE NEW CLAIM ====================== //
     await this.claimRepository.save(newClaim);
 
-    user.balance = parseFloat((Number(user.balance) + Number(user.claimableRef)).toFixed(4));
+    const gptRate = this.coinService.converter(user.claimableRef);
     user.claimableRef = 0;
+    user.gptBalance = parseFloat((Number(user.gptBalance) + Number(gptRate)).toFixed(4));
     user.claims && user.claims.push(newClaim);
 
     await this.userRepository.save(user);
-
     res.status(200).json({
       status: "success",
-      message: "Earnings claimed successfully"
+      message: "Earnings claimed successfully, check your GPT balance"
+    });
+    
+    // const reqUser = req.user;
+    // if (!reqUser) return next(new AppError("User not found", 400));
+
+    // const user = await this.userRepository.findOne({
+    //   where: { email: reqUser.email }
+    // });
+
+    // if (!user) return next(new AppError("User not found", 400));
+
+    // if (user.claimableRef <= 0) return next(new AppError("No earnings to claim", 400));
+
+    // // ====================== CREATE NEW CLAIM ====================== //
+    // const newClaim = this.claimRepository.create({
+    //   amount: user.claimableRef,
+    //   user
+    // });
+
+    // // ====================== SAVE NEW CLAIM ====================== //
+    // await this.claimRepository.save(newClaim);
+
+    // user.balance = parseFloat((Number(user.balance) + Number(user.claimableRef)).toFixed(4));
+    // user.claimableRef = 0;
+    // user.claims && user.claims.push(newClaim);
+
+    // await this.userRepository.save(user);
+
+    // res.status(200).json({
+    //   status: "success",
+    //   message: "Earnings claimed successfully"
+    // });
+  }
+
+  claimRoi = async (req: Request, res: Response, next: NextFunction) => {
+    // ====================== GET USER ====================== //
+    const reqUser = req.user;
+    if (!reqUser) return next(new AppError("User not found", 400));
+
+    const user = await this.userRepository.findOne({
+      where: { email: reqUser.email }
+    });
+
+    if (!user) return next(new AppError("User not found", 400));
+
+    if (user.claimableROI <= 0) return next(new AppError("No earnings to claim", 400));
+
+    // ====================== CREATE NEW CLAIM ====================== //
+    const newClaim = this.claimRepository.create({
+      amount: user.claimableROI,
+      user
+    });
+
+    // ====================== SAVE NEW CLAIM ====================== //
+    await this.claimRepository.save(newClaim);
+
+    const gptRate = this.coinService.converter(user.claimableROI);
+    user.claimableROI = 0;
+    user.gptBalance = parseFloat((Number(user.gptBalance) + Number(gptRate)).toFixed(4));
+    user.claims && user.claims.push(newClaim);
+
+    await this.userRepository.save(user);
+    res.status(200).json({
+      status: "success",
+      message: "Earnings claimed successfully, check your GPT balance"
+    });
+  }
+
+  getAllInvestments = async (req: Request, res: Response, next: NextFunction) => {
+    const theUser = req.user;
+    if (!theUser) return next(new AppError("User not found", 400));
+    const user = await this.userRepository.findOne({
+      where: { email: theUser.email }
+    });
+    if (!user) return next(new AppError("User not found", 400));
+    if (user.role !== "admin") return next(new AppError("You are not allowed to view all investments", 400));
+    
+    const investments = await this.investmentRepository.find();
+    res.status(200).json({
+      status: "success",
+      data: investments
     });
   }
   

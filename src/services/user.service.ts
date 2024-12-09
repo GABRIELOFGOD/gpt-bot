@@ -159,4 +159,14 @@ export class UserService {
     }
   }  
 
+  verifyAuthToken(token: any): any {
+    const secretKey = process.env.JWT_SECRET!;
+    try {
+      const decoded = jwt.verify(token, secretKey);
+      return decoded;
+    } catch (error) {
+      return null;
+    }
+  }
+
 }

@@ -3,7 +3,7 @@ import Joi from 'joi';
 export class InvestmentSchema {
   static createInvestment = Joi.object({
     amount: Joi.number().required(),
-    transactionHash: Joi.string().required(),
+    wallet: Joi.string().required(),
   });
 
   // static loginUser = Joi.object({

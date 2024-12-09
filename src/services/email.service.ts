@@ -1,17 +1,52 @@
-// import * as nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
+import * as dotenv from 'dotenv';
 
-// export class MailerService {
-//   private transporter: nodemailer.Transporter;
+const sender = "no-reply@gptbots.pro";
 
-//   constructor() {
-//     this.transporter = nodemailer.createTransport({
-//       service: 'gmail',
-//       auth: {
-//         user: 'aletechglobal@gmail.com',
-//         pass: process.env.GOOGLE_EMAIL_AUTH
-//       }
-//     });
-//   }
+export class MailerService {
+  private transporter: nodemailer.Transporter;
+
+  constructor() {
+    this.transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: 465,
+      secure: true,
+      auth: {
+        user: sender,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  }
+
+  sendPasswordResetEmail(to: string, token: string) {
+    this.transporter.sendMail({
+      from: sender,
+      to: to,
+      subject: "Password Reset Request",
+      html: `
+      <p>Dear User,</p>
+      <p>You requested a password reset. Please click on the link below to reset your password:</p>
+      <p><a href="https://app.gptbots.pro/reset-password?token=${token}">Reset Password</a></p>
+      <p>If you did not request this, please ignore this email.</p>
+      <p>Thank you,<br>GPTBOTS</p>
+      `,
+    });
+    console.log('Password reset email sent to: %s', to);
+  }
+
+  welcomeEmail(to: string) {
+    return this.transporter.sendMail({
+      from: sender,
+      to: to,
+      subject: "Welcome to GPTBOTS",
+      html: `
+      <p>Dear User,</p>
+      <p>Welcome to GPTBOTS! We are excited to have you on board.</p>
+      <p>Thank you for choosing us.</p>
+      <p>Best regards,<br>GPTBOTS</p>
+      `,
+    });
+  }
 
 //   async sendNewIpNotification(to: string, newIp: string) {
 //     const info = await this.transporter.sendMail({
@@ -43,4 +78,4 @@
 
 //     console.log('Top-up notification sent: %s', info.messageId);
 //   }
-// }
+}
