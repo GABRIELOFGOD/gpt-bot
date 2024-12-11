@@ -327,7 +327,7 @@ export class InvestmentController {
       // ======================= CALCULATE TOTAL INVESTMENT ======================= //
       const totalInvestment = user.investments.reduce((sum, investment) => sum + parseFloat(investment.amount.toString()), 0);
 
-      if(user.balance >= totalInvestment*3) continue;
+      if(user.earningsHistory.reduce((amount, earning) => amount+earning.amountEarned, 0) >= totalInvestment*3) continue;
 
       // ======================= CALCULATE ROI ======================= //
       const roi = this.investmentService.calculateInvestmentRoi(totalInvestment);
@@ -346,9 +346,9 @@ export class InvestmentController {
 
       // ======================= CALCULATE REFERRAL BONUS IF APPLICABLE ======================= //
       if (user.referredUsers && user.referredUsers.length > 0) {
-        console.log("running referral bonus");
+        // console.log("running referral bonus");
         const referralBonus = await this.investmentService.calculateReferralBonus(user, 1);
-        console.log("referral bonus: ", referralBonus);
+        // console.log("referral bonus: ", referralBonus);
         user.claimableRef = parseFloat((Number(user.claimableRef) + Number(referralBonus)).toFixed(4));
       }
 

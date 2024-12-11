@@ -460,6 +460,17 @@ export class InvestmentService {
       const referralDailyEarnings = referralTotalInvestment <= 2000 ? referralTotalInvestment * 0.001 : referralTotalInvestment * 0.002;
       bonus += referralDailyEarnings * bonusPercentage;
 
+      // ======================= ADD EARNINGS TO EARNINGS HISTORY ================= //
+      const newEarning = this.earningHistoryRepository.create({
+        amountEarned: bonus,
+        user,
+        generationLevel: generation,
+      });
+      const addedEarning = await this.earningHistoryRepository.save(newEarning);
+      user.earningsHistory && user.earningsHistory.push(addedEarning);
+      const earningSaved = await this.userRepository.save(user);
+      // console.log("Earning saved", newEarning);
+
       if (referral.referredUsers && referral.referredUsers.length > 0) {
         bonus += await this.calculateReferralBonus(referral, generation + 1, criteriaUser);
       }

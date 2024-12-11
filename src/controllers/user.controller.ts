@@ -188,7 +188,7 @@ export class UserController {
     const theUser = req.user;
     const user = await this.userRepository.findOne({
       where: { email: theUser.email },
-      relations: ["referredBy", "referredUsers", "investments", "claims", "withdrawalHistory"],
+      relations: ["referredBy", "referredUsers", "investments", "claims", "withdrawalHistory", "referredUsers.investments"],
     });
     if (!user) return next(new AppError("User not found", 404))
     const { password, ...userWithoutRole } = user;
@@ -368,7 +368,7 @@ export class UserController {
     // Fetch the user with their direct referrals
     const user = await this.userRepository.findOne({
         where: { email: theUser.email },
-        relations: ["referredUsers"], // Fetch only direct referrals here
+        relations: ["referredUsers", "referredUsers.investments"],
     });
 
     if (!user) return next(new AppError("User not found", 404));
@@ -392,7 +392,7 @@ export class UserController {
             // Fetch the referral's own referrals recursively
             const referralDetails = await this.userRepository.findOne({
                 where: { wallet: referral.wallet },
-                relations: ["referredUsers"], // Only fetch immediate referrals
+                relations: ["referredUsers", "referredUsers.investments"],
             });
 
             if (referralDetails) {
