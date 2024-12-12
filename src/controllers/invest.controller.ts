@@ -315,50 +315,244 @@ export class InvestmentController {
   //   }
   // }
 
-  getInvestmentRoi = async () => {
-    // ================ GET ALL USERS WITH INVESTMENTS AND REFERRED USERS ================ //
-    const users = await this.userRepository.find({
-      relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
-    });
+  // getInvestmentRoi = async () => {
+  //   // ================ GET ALL USERS WITH INVESTMENTS AND REFERRED USERS ================ //
+  //   const users = await this.userRepository.find({
+  //     relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
+  //   });
 
-    for (let user of users) {
-      if (!user.investments || user.investments.length === 0) continue;
+  //   for (let user of users) {
+  //     if (!user.investments || user.investments.length === 0) continue;
 
-      // ======================= CALCULATE TOTAL INVESTMENT ======================= //
-      const totalInvestment = user.investments.reduce((sum, investment) => sum + parseFloat(investment.amount.toString()), 0);
+  //     // ======================= CALCULATE TOTAL INVESTMENT ======================= //
+  //     const totalInvestment = user.investments.reduce((sum, investment) => sum + parseFloat(investment.amount.toString()), 0);
 
-      if(user.earningsHistory.reduce((amount, earning) => amount+earning.amountEarned, 0) >= totalInvestment*3) continue;
+  //     if(user.earningsHistory.reduce((amount, earning) => amount+earning.amountEarned, 0) >= totalInvestment*3) continue;
 
-      // ======================= CALCULATE ROI ======================= //
-      const roi = this.investmentService.calculateInvestmentRoi(totalInvestment);
+  //     // ======================= CALCULATE ROI ======================= //
+  //     const roi = this.investmentService.calculateInvestmentRoi(totalInvestment);
 
-      // ======================= UPDATE USER BALANCE ======================= //
-      user.claimableROI = parseFloat((Number(user.claimableROI) + Number(roi)).toFixed(4));
+  //     // ======================= UPDATE USER BALANCE ======================= //
+  //     user.claimableROI = parseFloat((Number(user.claimableROI) + Number(roi)).toFixed(4));
 
-      // ======================= ADD EARNINGS TO EARNINGS HISTORY ================= //
-      const newEarning = this.earningHistoryRepository.create({
-        amountEarned: roi,
-        user,
-        generationLevel: 0,
-      });
-      const addedEarning = await this.earningHistoryRepository.save(newEarning);
-      user.earningsHistory && user.earningsHistory.push(addedEarning);
+  //     // ======================= ADD EARNINGS TO EARNINGS HISTORY ================= //
+  //     const newEarning = this.earningHistoryRepository.create({
+  //       amountEarned: roi,
+  //       user,
+  //       generationLevel: 0,
+  //     });
+  //     const addedEarning = await this.earningHistoryRepository.save(newEarning);
+  //     user.earningsHistory && user.earningsHistory.push(addedEarning);
 
-      // ======================= CALCULATE REFERRAL BONUS IF APPLICABLE ======================= //
-      if (user.referredUsers && user.referredUsers.length > 0) {
-        // console.log("running referral bonus");
-        const referralBonus = await this.investmentService.calculateReferralBonus(user, 1);
-        // console.log("referral bonus: ", referralBonus);
-        user.claimableRef = parseFloat((Number(user.claimableRef) + Number(referralBonus)).toFixed(4));
-      }
+  //     // ======================= CALCULATE REFERRAL BONUS IF APPLICABLE ======================= //
+  //     if (user.referredUsers && user.referredUsers.length > 0) {
+  //       // console.log("running referral bonus");
+  //       const referralBonus = await this.investmentService.calculateReferralBonus(user, 1);
+  //       // console.log("referral bonus: ", referralBonus);
+  //       user.claimableRef = parseFloat((Number(user.claimableRef) + Number(referralBonus)).toFixed(4));
+  //     }
 
-      // ====================== SAVE USER ====================== //
-      await this.userRepository.save(user);
-      console.log(`User: ${user.wallet} ROI: ${roi}`);
-      console.log(`User: ${user.wallet} Balance: ${user.claimableROI}`);
-    }
-  };
+  //     // ====================== SAVE USER ====================== //
+  //     await this.userRepository.save(user);
+  //     console.log(`User: ${user.wallet} ROI: ${roi}`);
+  //     console.log(`User: ${user.wallet} Balance: ${user.claimableROI}`);
+  //   }
+  // };
+
+
+    
+  // Calculate ROI for self-investment
+  calculateSelfInvestmentROI(user: User) {
+    const roiRate = user.investments.reduce((total, invest) => total+invest.amount, 0) >= 2000 ? 0.002 : 0.001;
+    const dailyROI = user.investments.reduce((total, invest) => total+invest.amount, 0) * roiRate;
+
+    return dailyROI;
+  }
+
+  // Calculate referral overriding income
+  async calculateReferralROI(user: User) {
+    const levels = [
+        { level: 1, rate: 0.5, minSponsors: 1, selfInvestment: 100, directBusiness: 100 },
+        { level: 2, rate: 0.3, minSponsors: 2, selfInvestment: 100, directBusiness: 300 },
+        { level: 3, rate: 0.2, minSponsors: 3, selfInvestment: 200, directBusiness: 500 },
+        { level: 4, rate: 0.1, minSponsors: 4, selfInvestment: 200, directBusiness: 1000 },
+        { level: 5, rate: 0.1, minSponsors: 5, selfInvestment: 300, directBusiness: 1000 },
+        { level: 6, rate: 0.1, minSponsors: 6, selfInvestment: 300, directBusiness: 1500 },
+        { level: 7, rate: 0.05, minSponsors: 7, selfInvestment: 500, directBusiness: 1500 },
+        { level: 8, rate: 0.05, minSponsors: 8, selfInvestment: 500, directBusiness: 2000 },
+        { level: 9, rate: 0.05, minSponsors: 9, selfInvestment: 500, directBusiness: 2000 },
+        { level: 10, rate: 0.05, minSponsors: 10, selfInvestment: 500, directBusiness: 2500 },
+        { level: 11, rate: 0.03, minSponsors: 10, selfInvestment: 1000, directBusiness: 3000 },
+        { level: 16, rate: 0.03, minSponsors: 10, selfInvestment: 1500, directBusiness: 4000 },
+    ];
+
+    let referralROI = 0;
+
+    for (const level of levels) {
+      if (
+          user.referredUsers.length >= level.minSponsors &&
+          user.investments.reduce((total, invest) => total + invest.amount, 0) >= level.selfInvestment &&
+          user.referredUsers.reduce((total, referredUser) => {
+              return total + referredUser.investments.reduce((sum, investment) => sum + investment.amount, 0);
+          }, 0) >= level.directBusiness
+      ) {
+          for (const theReferral of user.referredUsers) {
+              const referral = await this.userRepository.findOne({
+                  where: { id: theReferral.id },
+                  relations: ["investments", "earningsHistory"],
+              });
   
+              if (!referral) continue;
+  
+              const userEarnings = this.calculateSelfInvestmentROI(referral);
+              const amountEarned = userEarnings * level.rate;
+              referralROI += amountEarned;
+  
+              const newEarning = this.earningHistoryRepository.create({
+                  amountEarned,
+                  user: referral,
+                  generationLevel: level.level,
+              });
+              const addedEarning = await this.earningHistoryRepository.save(newEarning);
+              // console.log("New Earning", addedEarning);
+  
+              if (!user.earningsHistory) {
+                  user.earningsHistory = [];
+              }
+              user.earningsHistory.push(addedEarning);
+              await this.userRepository.save(user);
+          }
+      }
+    }  
+    
+    // levels.forEach((level) => {
+    //     if (
+    //         user.referredUsers && user.referredUsers.length >= level.minSponsors &&
+    //         user.investments.reduce((total, invest) => total+invest.amount, 0) >= level.selfInvestment &&
+    //         // user.referredUsers.reduce >= level.directBusiness
+    //         user.referredUsers.reduce((total, referredUser) => {
+    //           return total + referredUser.investments.reduce((sum, investment) => sum + investment.amount, 0);
+    //         }, 0) >= level.directBusiness
+    //     ) {
+    //         user.referredUsers.forEach(async (theReferral) => {
+    //           const referral = await this.userRepository.findOne({
+    //             where: { id: theReferral.id },
+    //             relations: ["investments", "earningsHistory", "referredUsers", "referredUsers.investments"],
+    //           });
+
+    //           if (!referral) return;
+              
+    //             // referralROI += referral.investments.reduce((amount, invest) => amount+invest.amount, 0) * level.rate;
+    //           const userEarnings = this.calculateSelfInvestmentROI(referral);
+    //           referralROI += userEarnings * level.rate;
+
+    //           const newEarning = this.earningHistoryRepository.create({
+    //             amountEarned: userEarnings * level.rate,
+    //             user: referral,
+    //             generationLevel: level.level,
+    //           });
+    //           await this.earningHistoryRepository.save(newEarning);
+    //           referral.earningsHistory && referral.earningsHistory.push(newEarning);
+    //           await this.userRepository.save(referral);
+    //           // console.log("Earning", referral.earningsHistory);
+    //         });
+    //     }
+    // });
+
+    return referralROI;
+  }
+
+  getInvestmentRoi = async () => {
+    const users = await this.userRepository.find();
+  
+    for (const theUser of users) {
+      const user = await this.userRepository.findOne({
+          where: { id: theUser.id },
+          relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
+      });
+  
+      if (!user || !user.investments || !user.investments.length) continue;
+  
+      user.claimableROI = Number(user.claimableROI) || 0;
+      user.claimableRef = Number(user.claimableRef) || 0;
+  
+      const selfROI = this.calculateSelfInvestmentROI(user) || 0;
+      const newEarning = this.earningHistoryRepository.create({
+          amountEarned: selfROI,
+          user,
+          generationLevel: 0,
+      });
+      await this.earningHistoryRepository.save(newEarning);
+  
+      const referralROI = await this.calculateReferralROI(user) || 0;
+      user.earningsHistory.push(newEarning);
+  
+      user.claimableROI = parseFloat((user.claimableROI + selfROI).toFixed(4));
+      user.claimableRef = parseFloat((user.claimableRef + referralROI).toFixed(4));
+  
+      console.log({ userId: user.id, claimableROI: user.claimableROI, claimableRef: user.claimableRef });
+      await this.userRepository.save(user);
+    }  
+    
+    // for (const theUser of users) {
+    //   const user = await this.userRepository.findOne({
+    //     where: { id: theUser.id },
+    //     relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory"],
+    //   });
+  
+    //   if (!user || !user.investments || !user.investments.length) continue;
+  
+    //   // Ensure claimableROI and claimableRef are numbers
+    //   user.claimableROI = isNaN(Number(user.claimableROI)) ? 0 : Number(user.claimableROI);
+    //   user.claimableRef = isNaN(Number(user.claimableRef)) ? 0 : Number(user.claimableRef);
+  
+    //   const selfROI = this.calculateSelfInvestmentROI(user) || 0;
+      
+    //   const newEarning = this.earningHistoryRepository.create({
+    //     amountEarned: selfROI,
+    //     user,
+    //     generationLevel: 0,
+    //   });
+    //   await this.earningHistoryRepository.save(newEarning);
+    //   user.earningsHistory && user.earningsHistory.push(newEarning);
+    //   const referralROI = await this.calculateReferralROI(user) || 0;
+  
+    //   // Perform calculations
+    //   user.claimableROI = parseFloat((user.claimableROI + selfROI).toFixed(4));
+    //   user.claimableRef = parseFloat((user.claimableRef + referralROI).toFixed(4));
+  
+    //   // Log for debugging
+    //   console.log({
+    //     userId: user.id,
+    //     claimableROI: user.claimableROI,
+    //     claimableRef: user.claimableRef,
+    //     selfROI,
+    //     referralROI,
+    //   });
+  
+    //   await this.userRepository.save(user);
+    // }
+  };  
+
+  // Endpoint to calculate ROI
+  // app.post("/calculate-roi", (req, res) => {
+  //   const userId = req.body.userId;
+  //   const user = users.find((u) => u.id === userId);
+
+  //   if (!user) {
+  //       return res.status(404).json({ message: "User not found" });
+  //   }
+
+  //   const selfROI = calculateSelfInvestmentROI(user);
+  //   const referralROI = calculateReferralROI(user);
+
+  //   res.json({
+  //       message: "ROI Calculated",
+  //       selfROI,
+  //       referralROI,
+  //       totalDailyROI: selfROI + referralROI,
+  //   });
+  // });
 
   claimRefEarnings = async (req: Request, res: Response, next: NextFunction) => {
 
