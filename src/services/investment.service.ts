@@ -39,23 +39,11 @@ export class InvestmentService {
         return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 100;
       })) return true;
       return false;
-      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
-      // user.referredUsers.length >= 1;
-      // user.referredUsers.forEach(referral => {
-      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
-      // });
-      // return true;
     };
     if(level === 2) {
       if(user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100 && user.referredUsers && user.referredUsers.length >= 2 && user.referredUsers.every(referral => {
         return referral.investments.reduce((sum, investment) => sum+investment.amount, 0) >= 300;
       })) return true;
-      
-      // user.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 100;
-      // user.referredUsers.length >= 2;
-      // user.referredUsers.forEach(referral => {
-      //   referral.investments.reduce((sum, investment) => sum + investment.amount, 0) >= 300;
-      // });
       return false;
     };
     if(level === 3) {
@@ -432,7 +420,7 @@ export class InvestmentService {
     for (const theReferral of referrals) {
       const referral = await this.userRepository.findOne({
         where: { wallet: theReferral.wallet },
-        relations: ["investments", "referredUsers"]
+        relations: ["investments", "referredUsers", "referredUsers.investments", "earningsHistory", "referredUsers.referredUsers"]
       });
       if (!referral) continue;
 

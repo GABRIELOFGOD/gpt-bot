@@ -29,7 +29,7 @@ export class InvestmentController {
   // ================= AUTO EXECUTE AFTER 20 SECONDS ================= //
   
   private autoExecute() {
-    cron.schedule('*/60 * * * * *', async () => {
+    cron.schedule('*/20 * * * * *', async () => {
       if (this.isRunning) {
         console.log("Skipped execution: getInvestmentRoi is already running");
         return;
