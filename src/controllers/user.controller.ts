@@ -19,7 +19,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly userRepository: Repository<User>,
-    private readonly withdrawalRespository: Repository<Withdrawal>,
+    private readonly withdrawalRepository: Repository<Withdrawal>,
     private readonly investmentRepository: Repository<Investment>,
     private readonly mailService: MailerService
   ){}
@@ -134,11 +134,11 @@ export class UserController {
     // if(disposable < amount) return next(new AppError("Insufficient balance!", 400));
 
     // ======================== CREATING WITHRAWAL ======================== //
-    const newWithrawal = this.withdrawalRespository.create({amount, user});
+    const newWithrawal = this.withdrawalRepository.create({amount, user});
 
     user.balance = user.balance - amount;
     // newWithrawal.transactionId = gatewayResponse.transactionId;
-    await this.withdrawalRespository.save(newWithrawal);
+    await this.withdrawalRepository.save(newWithrawal);
     await this.userRepository.save(user);
     res.status(200).json({message: `Withdarawal of ${amount} is processing.`})
 
@@ -177,7 +177,7 @@ export class UserController {
       where: { email: theUser.email },
     });
     if (!user || user.role !== "admin") return next(new AppError("Sorry! you are not allowed to perform this operation.", 404));
-    const withdrawals = await this.withdrawalRespository.find({
+    const withdrawals = await this.withdrawalRepository.find({
       relations: ["user"],
     }).then(withdrawals => withdrawals.reverse());
     res.status(200).json({ withdrawals });
@@ -295,7 +295,7 @@ export class UserController {
     });
     if (!user || user.role !== "admin") return next(new AppError("Sorry! you are not allowed to perform this operation.", 404));
 
-    const theWithdrawal = await this.withdrawalRespository.findOne({
+    const theWithdrawal = await this.withdrawalRepository.findOne({
       where: { id: withdrawalId },
       relations: ['user']
     });
@@ -310,7 +310,7 @@ export class UserController {
     // ======================== SIGN WITHDRAWAL AND SEND TO BLOCKCHAIN ================================ //
 
     theWithdrawal.status = "completed";
-    await this.withdrawalRespository.save(theWithdrawal);
+    await this.withdrawalRepository.save(theWithdrawal);
 
     res.status(200).json({ message: "Withdrawal approved successfully" });
   });
@@ -436,7 +436,7 @@ export class UserController {
       where: { email: theUser.email },
     });
     if (!user || user.role !== "admin") return next(new AppError("Sorry! you are not allowed to perform this operation.", 404));
-    const withdrawals = await this.withdrawalRespository.find({
+    const withdrawals = await this.withdrawalRepository.find({
       relations: ["user"],
     }).then(withdrawals => withdrawals.reverse());
     res.status(200).json({ withdrawals });
